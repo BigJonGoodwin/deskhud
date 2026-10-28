@@ -1,0 +1,4 @@
+bin/
+tests/bin/
+settings.json
+*.tmp

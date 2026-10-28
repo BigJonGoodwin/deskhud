@@ -1,0 +1,44 @@
+{
+  "window_manager": {
+    "backend": "glazewm",
+    "glazewm_exe": "glazewm.exe"
+  },
+  "weather": {
+    "city": "",
+    "units": "celsius",
+    "refresh_hours": 8
+  },
+  "wallpapers": {
+    "folder": "%USERPROFILE%\\Pictures"
+  },
+  "apps": {
+    "browser":  { "exe": "msedge.exe",          "start": "Microsoft Edge" },
+    "ide":      { "exe": "Code.exe",            "start": "Visual Studio Code" },
+    "notes":    { "exe": "notepad.exe",         "start": "Notepad" },
+    "terminal": { "exe": "WindowsTerminal.exe", "start": "Terminal" }
+  },
+  "taskbar": {
+    "hide_windows_taskbar": true
+  },
+  "keyboard": {
+    "hook": true,
+    "win_tap": "none"
+  },
+  "tabs": {
+    "height": 26
+  },
+  "touch": {
+    "keyboard_button": "auto"
+  },
+  "startup": {
+    "minimized": []
+  },
+  "cheatsheet": "%USERPROFILE%\\.config\\deskhud\\cheatsheet.md",
+  "bar": {
+    "height": 40,
+    "rail": 3,
+    "island_radius": 12,
+    "edge_radius": 10,
+    "strip_max_width": 520
+  }
+}
