@@ -37,6 +37,9 @@ gaps:
     right: '0px'
     bottom: '0px'
     left: '0px'
+  # Room above stacked windows for deskhud's tab strip (deskhud-stacks fork); keep it equal to
+  # `tabs.height` in ~/.config/deskhud/settings.json.
+  tab_bar_height: '26px'
 
 window_effects:
   focused_window:
