@@ -17,7 +17,10 @@ namespace DeskHud
     {
         static readonly string Home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
-        public static readonly string ConfigDir = Path.Combine(Home, ".config", "deskhud");
+        /// DESKHUD_CONFIG_DIR moves it, so a second deskhud can be tried without touching the installed one's settings.
+        public static readonly string ConfigDir = string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DESKHUD_CONFIG_DIR"))
+            ? Path.Combine(Home, ".config", "deskhud")
+            : Environment.GetEnvironmentVariable("DESKHUD_CONFIG_DIR");
         public static readonly string SettingsFile = Path.Combine(ConfigDir, "settings.json");
         public static readonly string YasbColors = Path.Combine(Home, ".config", "yasb", "deskhud_colors.css");
 
