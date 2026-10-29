@@ -1,31 +1,38 @@
 # deskhud: a taskbar-free Windows desktop
 
 A Windows 11 setup where windows tile themselves, a single bar across the top replaces the taskbar,
-and the whole thing takes its colours from the wallpaper. It is three programs working together:
+stacked windows get tabs, and the whole thing takes its colours from the wallpaper. It is three
+programs working together:
 
 | Program | Job |
 |---|---|
-| [komorebi](https://github.com/LGUG2Z/komorebi) 0.1.41 | Tiling window manager: places windows in tiles, stacks, workspaces. |
-| [YASB](https://github.com/amnweb/yasb) 2.0.7 | The top bar: window title, media, timer, weather/network, CPU/RAM, tray, wifi/volume/battery, clock, system icons. |
-| **deskhud** (this folder) | A small C# app that glues them together: draws the bar's left island (workspaces and app icons, their right-click menus, a touch keyboard button in tablet posture), runs every hotkey, colours the bar and window borders from the wallpaper, and hides the Windows taskbar. |
+| [GlazeWM](https://github.com/glzr-io/glazewm) (the [deskhud-stacks fork](https://github.com/BigJonGoodwin/glazewm/tree/deskhud-stacks), with tabbed containers) | Tiling window manager: tiles, splits, tabs, workspaces, monitors. [komorebi](https://github.com/LGUG2Z/komorebi) 0.1.41 still works as a second backend. |
+| [YASB](https://github.com/amnweb/yasb) ([deskhud theme](https://github.com/BigJonGoodwin/yasb/tree/deskhud)) | The top bar: window title, media, timer, weather/network, CPU/RAM, tray, wifi/volume/battery, clock, system icons. |
+| **deskhud** (this repo) | A small C# app that glues them together: draws the bar's left island on every screen (workspaces and app icons, their right-click menus, a touch keyboard button in tablet posture), the tab strips over stacked windows, runs every hotkey (optional), colours the bar and window borders from the wallpaper, and hides the Windows taskbar. |
 
 deskhud idles at well under 1% of one CPU core and about 60 MB of RAM. It reacts to events instead of polling.
+`packaging/` holds the installer that sets up all three (see `packaging/README.md`). Licence: GPL-3.0.
 
 ## How the pieces talk
 
 ```
- keyboard ─► deskhud KeyboardHook ─► komorebic.exe ─► komorebi ──(event pipe)──► deskhud Strip
-                                                                                 (left island)
+ keyboard ─► deskhud KeyboardHook ─► GlazeWM IPC (ws://127.0.0.1:6123) ─► GlazeWM ──(events)──► deskhud
+                                                                                       islands + tab strips
  wallpaper ─► deskhud Palette ─┬─► ~/.config/yasb/deskhud_colors.css ─► YASB (rest of the bar)
-                               └─► komorebi border colours
+                               └─► window borders (DWM)
  YASB buttons ─► deskhud.exe <verb> ─(WM_COPYDATA)─► running deskhud
 ```
 
 - **Hotkeys** live in `~/.config/whkdrc`. deskhud reads that file (in [whkd](https://github.com/LGUG2Z/whkd)'s
-  format, so YASB's hotkey popup can list it) and runs the commands from one low-level keyboard hook.
-- **komorebi state** reaches deskhud through `komorebic subscribe-pipe`. Every change redraws the left island.
+  format, so YASB's hotkey popup can list it) and runs the commands from one low-level keyboard hook, which
+  is how it gets Win combos and the lone Win tap that Windows reserves. Set `keyboard.hook` to `false` and
+  deskhud runs no hotkeys at all: Windows keeps the Win key and GlazeWM's own `keybindings` apply.
+- **Window manager state** reaches deskhud as events: deskhud subscribes to all of GlazeWM's events
+  (`sub -e all`) and asks for the tree again after each burst (`query monitors`). Every change redraws
+  the islands and tab strips. (komorebi: `komorebic subscribe-pipe`.)
 - **Colours**: deskhud picks the wallpaper's main hues, writes them as CSS variables that YASB's
-  `styles.css` imports, and sets komorebi's border colours. It follows Windows' slideshow too.
+  `styles.css` imports, and colours the window borders itself through DWM (GlazeWM's own border
+  effects are off in the packaged config). It follows Windows' slideshow too.
 - **YASB → deskhud**: bar buttons run `deskhud.exe <verb>`, which hands the command to the running
   daemon and exits.
 
@@ -33,63 +40,66 @@ deskhud idles at well under 1% of one CPU core and about 60 MB of RAM. It reacts
 
 | Path | What it is | Edit it to… |
 |---|---|---|
-| `~/komorebi.json` | komorebi config: gaps, borders, workspaces, apps that need special handling. JSON, so no comments. | Change window gaps (`default_container_padding`), borders, workspaces. Apply with **Win+Shift+O**. |
-| `~/applications.json` | komorebi's community rules for awkward apps. | Leave it alone; refresh with `komorebic fetch-app-specific-configuration`. |
-| `~/.config/whkdrc` | Every hotkey, one per line: `win + shift + left : komorebic move left`. | Add or change keys. deskhud reloads it on save. |
-| `~/.config/yasb/config.yaml` | Which widgets the bar shows and what clicks do. Commented. | Add/remove widgets, change thresholds, clock format, pomodoro times. |
-| `~/.config/yasb/styles.css` | How the bar looks. Commented. | Colours, sizes, fonts, glows. |
-| `~/.config/yasb/deskhud_colors.css` | **Generated** by deskhud: the wallpaper's colours, and the bubble sizes for laptop or tablet posture (`--bubble-h`, `--icon-size`...). | Don't. It is overwritten on every wallpaper or posture change; sizes live in `YasbColors` (`Palette.cs`). |
-| `~/.config/deskhud/settings.json` | deskhud's settings (see below). | Your apps, wallpaper folder, cheatsheet, bar size. Applied on save. |
-| `~/.config/deskhud/src/*.cs` | deskhud's source. Every file starts with a header saying what it does. | Behaviour. Rebuild afterwards. |
-| `%LOCALAPPDATA%\deskhud\` | deskhud's state: `deskhud.log`, palette, ticker, weather and stack caches, `cheatsheet.json` (where the cheatsheet window last sat, as shares of the screen), `workspaces.json` (which number each screen's workspaces hold). | Nothing; safe to delete, it is rebuilt. |
-| `<your vault>/CheetSheets/Hotkeys.md` | The hotkey hub shown by **Win+/** (`cheatsheet` in settings.json): search, app filters, keyboard view and clashes over every app's keys. | Nothing; it draws from the sheets below. |
-| `<your vault>/CheetSheets/Hotkeys/*.md` | One sheet per app, plain tables of keys and actions; `Desktop.md` mirrors whkdrc. `_hub/view.js` and `view.css` draw the hub. | Add or change keys; keep `Desktop.md` in step with whkdrc (the hub warns when it isn't). |
-| `<your vault>/CheetSheets/cheatsheet-windows.md` | The guide to how the bar, deskhud and komorebi work. | Keep it in step when behaviour changes. |
-| Task Scheduler `\desktop\` | Three logon tasks: `komorebi`, `YASB`, `deskhud`. | Turn autostart off or on. |
+| `~/.glzr/glazewm/config.yaml` | GlazeWM's config: gaps, workspaces `1`…`9` (no `bind_to_monitor`, so numbers follow your screen), window rules. | Gaps, rules. Apply with **Win+Shift+O** (`wm-reload-config`, windows stay put). |
+| `~/.config/whkdrc` | Every hotkey, one per line: `win + shift + left : glazewm command move --direction left`. | Add or change keys. deskhud reloads it on save. |
+| `~/.config/yasb/config.yaml`, `styles.css` | Which widgets the bar shows and how it looks. Commented. | Widgets, thresholds, clock format, colours, sizes. |
+| `~/.config/yasb/deskhud_colors.css` | **Generated** by deskhud: the wallpaper's colours, and the bubble sizes for laptop or tablet posture. | Don't. Sizes live in `YasbColors` (`Palette.cs`). |
+| `~/.config/deskhud/settings.json` | deskhud's settings (see below; start from `settings.example.json`). | Window manager, your apps, wallpaper folder, cheatsheet, bar size, keyboard hook. Applied on save. |
+| `src/*.cs` | deskhud's source. Every file starts with a header saying what it does. | Behaviour. Rebuild afterwards. |
+| `%LOCALAPPDATA%\deskhud\` | deskhud's state: `deskhud.log`, palette, ticker, weather and stack caches, `cheatsheet.json`, `workspaces.json` (komorebi only). | Nothing; safe to delete, it is rebuilt. |
+| `cheatsheet` in settings.json | The note **Win+/** opens: an Obsidian note floats as its own window, anything else opens in its app. | Point it at your own cheatsheet. |
+| Task Scheduler `\deskhud-suite\` | Logon tasks for GlazeWM, YASB and deskhud (made by `packaging/install.ps1`). | Turn autostart off or on. |
 
 ### Source files
 
 | File | Responsibility |
 |---|---|
 | `Program.cs` | Entry point: starts the daemon, or forwards `deskhud <verb>` to it. |
-| `Daemon.cs` | Wires everything together; UI-side commands (`Dispatch`); file watchers. |
-| `Commands.cs` | Multi-step actions: stack/unstack with memory, snap, open app, focus, tile. |
-| `Komorebi.cs` | komorebi's state model (every monitor and its workspaces), running `komorebic`, the live event feed, safe restart. |
-| `Numbers.cs` | Workspace numbers that follow your screen: which komorebi workspace carries which number, and where a new number goes. |
+| `Daemon.cs` | Wires everything together; UI-side commands (`Dispatch`); file watchers; the optional keyboard hook. |
+| `WindowManager.cs` | `IWindowManager`, what deskhud asks of a window manager, and `Wm.Current`, the one in use. |
+| `GlazeWm.cs` | GlazeWM: the WebSocket IPC client, the live event feed, its tree as a `Snapshot`, deskhud's verbs as GlazeWM commands, DWM borders. |
+| `KomorebiWm.cs`, `Komorebi.cs` | komorebi: deskhud's verbs as komorebic commands (stack memory, snap, restarts), its state parser, `komorebic`, the pipe feed. |
+| `Snapshot.cs` | The state model both backends fill: monitors, workspaces, tiles (stacks / tab stacks), windows. |
+| `Numbers.cs` | Workspace numbers that follow your screen (komorebi; GlazeWM's workspace names are the numbers). |
+| `Commands.cs` | Every verb, mapped to the window manager or done directly (open app, close, new window, wallpaper). |
 | `Keyboard.cs` | Reads `whkdrc`; the keyboard hook; the command runner. |
-| `Strip.cs` | Draws a left island (the biggest file; sizes are constants at the top), its glows, workspace numbers, and what each right-click menu holds. One island per screen, each showing its own monitor's workspaces; every one offers the minimized windows. |
-| `Menus.cs` | How those menus look: dark, accent-lit hover, colour-coded glyphs, rounded accent border. |
+| `Strip.cs` | Draws a left island (the biggest file; sizes are constants at the top), its glows, workspace numbers, and what each right-click menu holds. One island per screen. |
+| `Tabs.cs` | The tab strip over each tabbed container: icon + title per tab, active one lit, click / middle-click. |
+| `Menus.cs` | How the menus look: dark, accent-lit hover, colour-coded glyphs, rounded accent border. |
 | `Palette.cs` | Wallpaper colours → YASB CSS and komorebi borders; wallpaper stepping. |
 | `Ticker.cs` | Weather and network text for YASB's ticker widget. |
-| `Loose.cs` | Finds untiled windows and gives back the ones komorebi dropped. |
-| `Cheatsheet.cs` | Win+/: Obsidian's own window (kept minimized with the hub open) brought to the current workspace at its remembered spot, or sent back to the tray. |
+| `Loose.cs` | Finds untiled windows and gives back the ones the window manager dropped. |
+| `Cheatsheet.cs` | Win+/: the cheatsheet note's window brought to the current workspace at its remembered spot, or sent back to the tray. |
 | `Background.cs` | Apps started at login straight into the tray bubble (`startup.minimized`), and keeping them there. |
 | `Tray.cs`, `Effects.cs` | Minimized windows; app icons with their shaped glow; the soft bloom behind bubbles. |
 | `Shell.cs` | App ids and icons from the shell, so packaged apps (Settings, Calculator...) show real icons. |
 | `Taskbar.cs` | Hides the Windows taskbar while deskhud runs, in laptop and tablet posture alike. |
 | `Touch.cs` | Tablet posture detection and the on-screen keyboard toggle. |
-| `Yasb.cs` | Asks each YASB bar (UI Automation) where its islands start (the centred media island included), so the left islands never run under them; samples the album art's colour for the media glow. |
+| `Yasb.cs` | Asks each YASB bar (UI Automation) where its islands start, so the left islands never run under them; samples the album art's colour for the media glow. |
 | `Ipc.cs`, `Native.cs`, `Paths.cs`, `Json.cs`, `Settings.cs` | Plumbing. |
 
-## Build and run
+## Build, test and run
 
 ```powershell
-powershell -File ~/.config/deskhud/build.ps1
+powershell -File build.ps1            # bin\deskhud.exe; restarts a deskhud running from that file
+powershell -File build.ps1 -Offline   # bin\offline\deskhud.exe; leaves every running deskhud alone
+powershell -File tests\run.ps1        # offline build + tests on recorded GlazeWM / komorebi JSON
 ```
 
-That compiles `bin\deskhud.exe` with the C# compiler built into Windows (.NET Framework 4.8). Nothing
-needs installing (UI Automation and WIC's image decoders come from the framework's own `WPF` folder, which build.ps1 points at). It stops the running daemon first (so the taskbar comes back cleanly) and starts the
-new one afterwards. The compiler only knows **C# 5**: no string interpolation (`$"..."`), no `?.`,
-no `nameof`, no `=>` members, and no exception filters.
+`build.ps1` compiles with the C# compiler built into Windows (.NET Framework 4.8); nothing needs
+installing (UI Automation and WIC's image decoders come from the framework's own `WPF` folder). Only a
+deskhud started from `bin\deskhud.exe` itself is stopped (so the taskbar comes back cleanly) and started
+again. The compiler only knows **C# 5**: no string interpolation (`$"..."`), no `?.`, no `nameof`, no
+`=>` members, and no exception filters.
 
-- **YASB changes**: `config.yaml` and `styles.css` reload on save. If YASB's file watcher has died,
-  run `yasbc reload` (this restarts the bar, which takes a few seconds).
-- **komorebi.json changes**: run `komorebic check` (komorebi refuses a config with errors and just
-  quits), then press **Win+Shift+O** (or run `deskhud.exe restart-komorebi`). komorebi
-  saves its layout when it stops and restores it on start, so nothing moves.
-- **whkdrc and settings.json**: picked up on save.
-- **Logs**: `%LOCALAPPDATA%\deskhud\deskhud.log`, `~/.config/yasb/yasb.log`,
-  `%TEMP%\komorebi_plaintext.log.<date>`.
+`tests\run.ps1` never talks to GlazeWM, komorebi or YASB; it keeps deskhud's log in `%TEMP%\deskhud-tests`
+and writes an offline render of a tab strip to `tests\bin\tabstrip.png`.
+
+- **GlazeWM config changes**: **Win+Shift+O** (`glazewm command wm-reload-config`). GlazeWM shows its own
+  dialog when the config has an error.
+- **YASB changes**: `config.yaml` and `styles.css` reload on save; otherwise `yasbc reload`.
+- **whkdrc and settings.json**: picked up on save (`window_manager.backend` takes a deskhud restart).
+- **Logs**: `%LOCALAPPDATA%\deskhud\deskhud.log`, `~/.config/yasb/yasb.log`, and GlazeWM's own log (`glazewm start --verbose` in a terminal).
 
 ## deskhud commands
 
@@ -97,43 +107,85 @@ Run `deskhud.exe <verb>` from a terminal, a YASB button, or a `whkdrc` line (`de
 
 | Verb | Does |
 |---|---|
-| `stack <left\|right\|up\|down>` | Stack the window onto its neighbour; on a stack, pull the neighbour in. |
-| `unstack` | Pop the front window out of its stack, back where it was. |
-| `snap` | Cycle the main split: 1/2 → 2/3 → 1/3. |
+| `toggle-tabbed` | **The one-button stack/unstack**: the windows of this split become tabs, or tiles again (GlazeWM fork). On komorebi: stack onto the left neighbour, or pop out. |
+| `stack <left\|right\|up\|down>` | Put the window into its neighbour's tabs (making them if needed); on komorebi, stack onto the neighbour. |
+| `unstack` | Take the front window out of its tabs / stack, next to them. |
+| `cycle-tab <next\|previous>` | The next or previous tab of the focused stack. |
+| `snap` | Cycle the focused tile's share of the split: 1/2 → 2/3 → 1/3. |
 | `open <app>` | Focus the app from `apps` in settings.json, or start it. |
 | `minimize`, `restore [hwnd]`, `restore-all`, `tray <next\|previous>` | Minimize to the island's tray bubble, bring back, pick. |
-| `tile <hwnd>` | Make komorebi tile an untiled window. |
-| `focus-window <hwnd>` | Switch to the window's workspace and stack slot. |
-| `workspace <n>`, `move-to-workspace <n>` | Win+N / Win+Shift+N: go to workspace number n, or take the focused window there: on its own screen if it is in use, else a new one on the focused screen (see "Several monitors"). |
-| `window <hwnd> <action> [n]` | What the icon menu runs: `new`, `minimize`, `float` (toggle), `monocle`, `unstack`, `move <number>`, `location`, `close`. The komorebic ones focus the window first and are skipped (logged) if Windows won't let deskhud bring it forward. |
+| `tile <hwnd>` | Make the window manager tile an untiled window. |
+| `focus-window <hwnd>` | Switch to the window's workspace, tile and tab. |
+| `workspace <n>`, `move-to-workspace <n>` | Win+N / Win+Shift+N: go to workspace number n, or take the focused window there: on its own screen if it is in use, else a new one on the screen you are on (see "Several monitors"). |
+| `window <hwnd> <action> [n]` | What the icon menu runs: `new`, `minimize`, `float` (toggle), `monocle` (GlazeWM: maximized fullscreen), `unstack`, `move <number>`, `location`, `close`. |
+| `go-to <monitor> <workspace>`, `focus-monitor <monitor>` | What clicking an island runs: a workspace by its place on that island's monitor. |
+| `layout <next\|previous\|flip>`, `workspace-layout <monitor> <workspace> <value>`, `retile`, `pause` | The layout map and workspace menu. GlazeWM: flip the split direction, set a workspace's direction, `wm-redraw`, `wm-toggle-pause`. |
 | `keyboard` | Show or hide the on-screen keyboard. |
-| `wallpaper <next\|prev> [here]` | A new picture on one screen: the one under the cursor with `here` (the bar's button), else the one you are on (Win+Shift+W). Pictures come from `wallpapers.folder` (at random while the slideshow shuffles, else by name); `prev` is that screen's previous one. Windows' slideshow keeps running. |
-| `cheatsheet` | Bring Obsidian (showing the hotkey hub) to the current workspace at its remembered spot; again, with it in front, back to the tray. |
-| `restart-komorebi`, `start-komorebi` | Restart komorebi keeping the layout, or start it. Both run `komorebic check` first and refuse a `komorebi.json` that would not load (the offline bubble then shows its error; clicking it opens the file). |
+| `wallpaper <next\|prev> [here]` | A new picture on one screen: the one under the cursor with `here` (the bar's button), else the one you are on (Win+Shift+W). |
+| `cheatsheet` | Bring the cheatsheet window to the current workspace; again, with it in front, back to the tray. |
+| `restart-wm`, `start-wm` | Reload GlazeWM's config (windows stay put) or start GlazeWM (`window_manager.glazewm_exe`). On komorebi: restart keeping the layout (`komorebic check` first), or start it. `restart-komorebi` / `start-komorebi` still work. |
 | `reload` | Re-read settings and hotkeys, rebuild the palette. |
 | `reload-yasb`, `settings`, `weather`, `start-menu`, `quit` | As named. |
-| `komorebic <args…>` | Pass a command straight to komorebic. |
+| `glazewm <message>` | Send a message straight to GlazeWM's IPC: `glazewm command focus --direction left`, `glazewm query workspaces`. |
+| `komorebic <args…>` | Pass a command straight to komorebic (komorebi backend). |
 
 ## settings.json
 
 | Key | Meaning |
 |---|---|
+| `window_manager.backend` | `glazewm` (default) or `komorebi`. Read at start; restart deskhud after changing it. |
+| `window_manager.glazewm_exe` | How to start GlazeWM: `glazewm.exe` on PATH, or a full path. |
+| `keyboard.hook` | `true` (default): deskhud runs `whkdrc` from its own keyboard hook and owns Win combos and the lone Win tap. `false`: no hook and no deskhud hotkeys; use GlazeWM's `keybindings` (`packaging/install.ps1 -NoKeyboardHook` sets them up with Alt). |
+| `keyboard.win_tap` | What a lone Win tap does: `none`, `start`, or a combo like `alt+space` (needs the hook). |
+| `tabs.height` | Height of the tab strip over tabbed containers, in logical pixels (26). Keep it equal to the space the GlazeWM fork leaves at their top. |
 | `weather.city` | `"Lisbon"` or `"Springfield, Illinois"`. Empty hides the weather. |
 | `weather.units`, `weather.refresh_hours` | `fahrenheit`/`celsius`; how often to refetch. |
 | `wallpapers.folder` | Folder the wallpaper button steps through when Windows' slideshow is off. |
 | `apps.<name>.exe` / `.start` | For `deskhud open <name>`: the exe to find among open windows, and a Start menu name, path or URI to launch. |
 | `taskbar.hide_windows_taskbar` | Hide the Windows taskbar while deskhud runs. |
-| `keyboard.win_tap` | What a lone Win tap does: `none`, `start`, or a combo like `alt+space`. |
 | `touch.keyboard_button` | The island's touch keyboard bubble: `auto` (only in tablet posture), `always`, `never`. |
-| `cheatsheet` | The note Win+/ opens (inside an Obsidian vault for the floating window). Now the hotkey hub. |
-| `startup.minimized` | Names from `apps` started at login straight into the tray bubble (today: `notes`, Obsidian). Apps already open are left alone. |
+| `cheatsheet` | The note Win+/ opens (inside an Obsidian vault for the floating window). |
+| `startup.minimized` | Names from `apps` started at login straight into the tray bubble. Apps already open are left alone. |
 | `bar.height`, `bar.rail`, `bar.island_radius`, `bar.edge_radius` | Bar shape. **Must match YASB** (see below). |
 | `bar.strip_max_width` | How wide the left island may grow before its icons shrink. It also stops short of YASB's first island, wherever that is at the moment. |
+
+## GlazeWM
+
+**Stacked tabs.** The GlazeWM fork adds a tabbed layout to split containers: every window of the split
+shares its rectangle and one shows at a time. **Win+T** (`toggle-tabbed`) turns the split around the
+focused window into tabs and back; Win+Alt+arrows put a window into its neighbour's tabs, Win+Alt+Backspace
+takes it out, Win+[ and Win+] change tabs. deskhud shows a tab stack on the island like a komorebi stack
+(icons grouped, the front tab lit; scrolling it changes tabs) and draws a **tab strip** along the top of
+each tabbed container on show (`Tabs.cs`): icon and title per tab, the active tab lit in the accent,
+click to switch, middle-click to close. It is a layered window just above the active tab in the z-order,
+so anything in front of that window stays in front; it follows title changes while it is up.
+
+What deskhud reads (IPC JSON, `query monitors`): a split with `"layout": "tabbed"` is one tile whose
+tabs are every window under it, in order; the active tab is `activeChildId` (or `activeChildIndex`, or
+the split's last focused child); the split's `x`/`y`/`width` place the strip. Tiled splits are flattened
+into one tile per window, floating windows go in the floating group, minimized ones to the tray bubble,
+and a fullscreen window counts as monocle.
+
+**Numbers follow your screen**, by GlazeWM's own rules: a workspace name lives on one monitor at a time,
+and `focus --workspace N` goes there; a name not in use is created on GlazeWM's focused monitor. So
+Win+N for a number in use goes to its screen, and for a free one deskhud focuses the screen you are on
+first (`focus --monitor`, since GlazeWM's focus lags when you click an empty screen), then
+`focus --workspace N`. Win+Shift+N is `move --workspace N` then `focus --workspace N`. This needs the
+numbers as workspaces in GlazeWM's config **without** `bind_to_monitor` (the packaged config has `1`…`9`).
+A workspace with another name gets the lowest free number on the islands.
+
+**Borders.** GlazeWM takes border colours from its config file only, so deskhud sets them on each window
+itself (`DWMWA_BORDER_COLOR`, Windows 11): the focused tile in the accent, a focused tab stack in the
+stack colour, a focused floating window in the floating colour, everything else unfocused, and the
+negative colour while paused. They go back to Windows' own on quit. Keep GlazeWM's `window_effects`
+borders off.
 
 ## Recipes
 
 **Add a hotkey.** Add a line to `~/.config/whkdrc` under a `## Section` header and save:
-`win + shift + t : komorebic toggle-tiling`. Modifiers: `win`, `ctrl`, `alt`, `shift`. Keys: letters, digits,
+`win + shift + t : glazewm command toggle-tiling` (a GlazeWM command), `win + z : deskhud snap` (a deskhud
+verb), or any other command line (run through `cmd`). Held keys repeat for GlazeWM's `focus`, `move` and
+`resize` and for `deskhud cycle-tab`; everything else fires once per press. Modifiers: `win`, `ctrl`, `alt`, `shift`. Keys: letters, digits,
 `left`, `return`, `back`, `oem_4` (`[`), `f1`…`f24`, or `0x..` virtual-key codes (`HotkeyFile.Named` in
 `Keyboard.cs`). Update the cheatsheet too.
 
@@ -144,8 +196,9 @@ as `--bubble-h`, `--inner-h`, `--icon-size`, `--icon-small` and `--text-size`; k
 at the laptop `--bubble-h` + 2 and `TabletZoom` at (tablet + 2) / BubbleH. The rail and radii live in
 `.yasb-bar.adaptive` in `styles.css` and `bar.*` in `settings.json`.
 
-**Several monitors.** Each screen gets its own left island showing that monitor's workspaces (komorebi
-keeps a separate set per monitor). Numbers follow your screen, as in i3 (`Numbers.cs`): a workspace
+**Several monitors.** Each screen gets its own left island showing that monitor's workspaces. With
+GlazeWM the rules below come from GlazeWM itself (see "GlazeWM" above); what follows describes the
+komorebi backend, which keeps a separate set of workspaces per monitor. Numbers follow your screen, as in i3 (`Numbers.cs`): a workspace
 with windows, or on show, holds a number unique across screens and keeps it on its screen. Win+N and
 Win+Shift+N (`deskhud workspace` / `move-to-workspace`) go to a number in use on whichever screen holds
 it; a free number is made on the screen you are on, from an empty workspace there (`komorebic
@@ -191,7 +244,8 @@ others on hover; `LightPool` is the pool of colour under the focused icon. YASB 
 hover glows are gradients into each bubble's bottom edge in its function colour (`:hover` rules and
 the `--fn-*-rgb` variables in `styles.css`).
 
-**Make an app float (or leave it alone).** In `komorebi.json`, add a rule to `floating_applications`
+**Make an app float (or leave it alone).** GlazeWM: a `window_rules` entry in its `config.yaml` with
+`commands: ['set-floating']` (or `ignore`). komorebi: in `komorebi.json`, add a rule to `floating_applications`
 (komorebi manages it but never tiles it; `float_rule_placement: "Center"` centres it when it opens) or
 to `ignore_rules` (komorebi never touches it; for overlays and popups). A rule is
 `{ "kind": "Exe" | "Title" | "Class", "id": "...", "matching_strategy": "Equals" | "StartsWith" | ... }`,
@@ -212,16 +266,27 @@ such as `"󰗚"` for U+F05DA). Avoid Font Awesome's U+F000-U+F0FF: YASB draws th
 in `PaletteStore`, add a `Var(...)` line in `YasbColors.Write`, then use `var(--your-name)` in `styles.css`.
 `rgba(var(--name-rgb), 0.5)` works for transparency.
 
-**Add a deskhud command.** Quick UI-side work: a `case` in `Daemon.Dispatch`. Anything that runs `komorebic`
-or might block: a `case` in `Commands.Execute` plus a method. Bind it in `whkdrc` as `deskhud <verb>`.
+**Add a deskhud command.** Quick UI-side work: a `case` in `Daemon.Dispatch`. Anything that talks to the
+window manager or might block: a `case` in `Commands.Execute`, and when it needs the window manager, a
+method on `IWindowManager` implemented in both `GlazeWm.cs` and `KomorebiWm.cs`. Bind it in `whkdrc` as
+`deskhud <verb>`.
 
-**Window gaps.** `default_container_padding` in `komorebi.json`, applied with Win+Shift+O; or live per
-workspace with `deskhud.exe komorebic container-padding <monitor> <workspace> <px>`.
+**Window gaps.** `gaps` in GlazeWM's `config.yaml`, applied with Win+Shift+O. (komorebi:
+`default_container_padding` in `komorebi.json`.)
 
 **CPU/RAM warning levels.** `cpu_thresholds` and `memory_thresholds` in `config.yaml`; the warning colours are
 `--load-high` and `--load-critical` in `styles.css`.
 
 ## Things learned the hard way
+
+Most of these date from the komorebi version and still apply to the komorebi backend; the Windows,
+YASB and Obsidian ones apply to both.
+
+- **GlazeWM sends no event when a window's title changes.** The islands do not show titles, but the
+  tab strips do, so while a strip is up deskhud listens for title changes itself (`EVENT_OBJECT_NAMECHANGE`,
+  only while some tab strip exists).
+- **GlazeWM's IPC splits every message on whitespace** (`clap` parses it), so arguments cannot carry
+  spaces; workspace names used as numbers have none.
 
 - **Never run `komorebic replace-configuration`.** In komorebi 0.1.41 it piles every window from every
   workspace onto one and breaks stacks. Restart komorebi instead (`deskhud restart-komorebi`).
@@ -318,12 +383,14 @@ workspace with `deskhud.exe komorebic container-padding <monitor> <workspace> <p
 ## Security model
 
 - **Nothing runs elevated.** The three logon tasks run as you at medium integrity. Keep it that way:
-  deskhud runs commands from `whkdrc` (`cmd /c` for lines that are not `deskhud` or `komorebic`) and
+  deskhud runs commands from `whkdrc` (`cmd /c` for lines that are not `deskhud`, `glazewm` or `komorebic`) and
   starts programs named in `settings.json`, both files you can write, so an elevated deskhud would let
   any program of yours gain admin rights through them.
 - **IPC** (`deskhud <verb>`) is WM_COPYDATA to a message-only window. Windows' UIPI keeps lower-integrity
   (sandboxed) processes from sending it; deskhud never relaxes that, and ignores empty or oversized
-  messages. Verbs act on komorebi, your windows and your own config; none runs arbitrary programs.
+  messages. Verbs act on the window manager, your windows and your own config; none runs arbitrary programs.
+- **GlazeWM's IPC** is a WebSocket on 127.0.0.1:6123 with no authentication (GlazeWM's design): any
+  program of yours can send it commands. deskhud only connects to it; it opens no port of its own.
 - **The keyboard hook** sees every key but only looks up hotkeys; the log never records keys, only
   commands and errors.
 - **Network**: just the weather, over HTTPS to Open-Meteo, with the city name escaped. JSON is parsed
@@ -333,12 +400,9 @@ workspace with `deskhud.exe komorebic container-padding <monitor> <workspace> <p
 
 ## Reusing this on another PC
 
-Everything personal is in config, not code:
-
-- `settings.json`: `apps` (your browser, IDE, notes app, terminal), `wallpapers.folder`, `cheatsheet`, `weather.city`.
-- `whkdrc`: the app keys under `## Apps`.
-- `komorebi.json`: workspace names, and `layered_applications` (apps that need it to tile).
-- `config.yaml`: the absolute paths to `deskhud.exe` in the YASB button callbacks (they contain the user name).
-- The Task Scheduler tasks, and the Obsidian vault path for the cheatsheet.
-
-Build deskhud, start komorebi (`komorebic start`), YASB and deskhud, then add the three logon tasks.
+Everything personal is in config, not code. The easy way is `packaging/install.ps1` (no admin rights): it
+installs the GlazeWM fork, YASB with this theme and deskhud, writes default configs (keeping a backup of
+any already there) and adds the logon tasks. By hand: build deskhud, copy `settings.example.json` to
+`~/.config/deskhud/settings.json` and fill in `apps`, `wallpapers.folder`, `cheatsheet` and
+`weather.city`, put a `whkdrc` in `~/.config` (`packaging/defaults/whkdrc`), and start GlazeWM, YASB and
+deskhud.
