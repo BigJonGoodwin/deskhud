@@ -1,0 +1,16 @@
+{
+  "monitors": [
+    {
+      "type": "monitor", "id": "left", "hasFocus": false, "x": -1920, "y": 0, "width": 1920, "height": 1080, "deviceName": "\\\\.\\DISPLAY2",
+      "children": [ { "type": "workspace", "id": "w1", "name": "1", "isDisplayed": true, "x": -1920, "y": 0, "width": 1920, "height": 1080, "children": [] } ]
+    },
+    {
+      "type": "monitor", "id": "laptop", "hasFocus": true, "x": 0, "y": 0, "width": 2400, "height": 1600, "deviceName": "\\\\.\\DISPLAY1",
+      "children": [ { "type": "workspace", "id": "w2", "name": "2", "isDisplayed": true, "x": 0, "y": 0, "width": 2400, "height": 1600, "children": [] } ]
+    },
+    {
+      "type": "monitor", "id": "right", "hasFocus": false, "x": 2400, "y": 0, "width": 2560, "height": 1440, "deviceName": "\\\\.\\DISPLAY3",
+      "children": [ { "type": "workspace", "id": "w3", "name": "3", "isDisplayed": true, "x": 2400, "y": 0, "width": 2560, "height": 1440, "children": [] } ]
+    }
+  ]
+}

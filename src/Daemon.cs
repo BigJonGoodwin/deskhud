@@ -254,7 +254,10 @@ namespace DeskHud
                     queue.Enqueue(() => ReportConfig(wm.Start(), true));
                     return true;
                 case "quit":
-                    ExitThread();
+                    // From the loop, not from here: `deskhud quit` waits in SendMessage until this returns,
+                    // and shutting down inside its message (the IPC window destroyed under it, Explorer
+                    // asked to show the taskbar) left both processes stuck.
+                    strip.BeginInvoke(new Action(ExitThread));
                     return true;
             }
 
@@ -662,8 +665,18 @@ namespace DeskHud
             }
         }
 
+        /// Longest a quit may take before the process just ends (the taskbar is given back first).
+        const int ExitDeadlineMs = 3000;
+
         protected override void ExitThreadCore()
         {
+            var deadline = new System.Threading.Thread(() =>
+            {
+                System.Threading.Thread.Sleep(ExitDeadlineMs);
+                Log.Write("quit: still shutting down after " + ExitDeadlineMs + " ms, exiting anyway");
+                Environment.Exit(0);
+            }) { IsBackground = true, Name = "exit-deadline" };
+            deadline.Start();
             Dispose(true);
             base.ExitThreadCore();
         }
@@ -673,6 +686,9 @@ namespace DeskHud
             if (!disposed && disposing)
             {
                 disposed = true;
+                // The taskbar first: it is what matters if anything after this hangs.
+                taskbar.Dispose();
+                if (keyboard != null) keyboard.Dispose();
                 SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
                 SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
                 foreach (IntPtr hook in hooks) Native.UnhookWinEvent(hook);
@@ -686,14 +702,12 @@ namespace DeskHud
                 looseCheck.Dispose();
                 if (wallpaperWatcher != null) wallpaperWatcher.Dispose();
                 wallpaperDebounce.Dispose();
-                if (keyboard != null) keyboard.Dispose();
                 if (hotkeys != null) hotkeys.Dispose();
                 tabs.Dispose();
                 wm.ResetBorders();
                 yasb.Dispose();
                 postureSettle.Dispose();
                 screenCheck.Dispose();
-                taskbar.Dispose();
                 ticker.Dispose();
                 ipc.Dispose();
                 queue.Dispose();

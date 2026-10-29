@@ -399,8 +399,9 @@ namespace DeskHud
                                 var snapshot = Snapshot.FromGlazeWm(data, paused);
                                 snapshot.ConfigReloaded = reloaded;
                                 reloaded = false;
-                                post.Publish(snapshot);
+                                // Online first: GlazeWm.Feed renumbers on a connection's first snapshot.
                                 post.SetOnline(true);
+                                post.Publish(snapshot);
                                 retryMs = 1000;
                             }
                             if (stale)
@@ -566,7 +567,56 @@ namespace DeskHud
 
         public IDisposable Feed(Action<Snapshot> onState, Action<bool> onOnline)
         {
-            return new GlazeFeed(s => { borders.Update(s); onState(s); }, onOnline);
+            // The feed reports online before the first snapshot of each connection (UI thread, in order).
+            bool connected = false;
+            return new GlazeFeed(s =>
+            {
+                borders.Update(s);
+                if (connected)
+                {
+                    connected = false;
+                    Renumber(s);
+                }
+                onState(s);
+            }, online =>
+            {
+                connected = online;
+                onOnline(online);
+            });
+        }
+
+        /// Runs StartNumbering's renames off the UI thread; GlazeWM's workspace_updated events redraw.
+        static void Renumber(Snapshot snapshot)
+        {
+            List<string> commands = StartNumbering(snapshot);
+            if (commands.Count == 0) return;
+            Log.Write("glazewm: renaming the screens' workspaces so the primary screen shows the lowest number");
+            ThreadPool.QueueUserWorkItem(_ =>
+            {
+                foreach (string command in commands)
+                    if (!GlazeIpc.Command(command)) return;
+            });
+        }
+
+        /// GlazeWM starts every screen with one workspace, handed out in its own monitor order (left to
+        /// right), so the primary screen can show 2. While each screen still has just that one, swap the
+        /// names (through temporary ones: GlazeWM refuses a name in use) so the numbers go the way the
+        /// islands count, primary first, then left to right (Snapshot.Numbered). After that, numbers
+        /// follow your screen as usual, so this never moves a workspace someone made.
+        internal static List<string> StartNumbering(Snapshot snapshot)
+        {
+            var commands = new List<string>();
+            List<MonitorView> monitors = snapshot.Numbered();
+            if (monitors.Count < 2 || monitors.Any(m => m.Workspaces.Count != 1)) return commands;
+            var names = monitors.Select(m => m.Workspaces[0].Name).ToList();
+            int n;
+            if (names.Any(name => !int.TryParse(name, NumberStyles.None, CultureInfo.InvariantCulture, out n) || n < 1)) return commands;
+            var wanted = names.Select(name => int.Parse(name, CultureInfo.InvariantCulture)).OrderBy(x => x)
+                .Select(x => x.ToString(CultureInfo.InvariantCulture)).ToList();
+            var moving = Enumerable.Range(0, names.Count).Where(i => names[i] != wanted[i]).ToList();
+            foreach (int i in moving) commands.Add("update-workspace-config --workspace " + names[i] + " --name deskhud-" + wanted[i]);
+            foreach (int i in moving) commands.Add("update-workspace-config --workspace deskhud-" + wanted[i] + " --name " + wanted[i]);
+            return commands;
         }
 
         public bool Run(string[] args)

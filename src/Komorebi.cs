@@ -381,7 +381,11 @@ namespace DeskHud
             stopping = true;
             var current = pipe;
             if (current != null) current.Dispose();
-            Komorebic.Run("unsubscribe-pipe", PipeName);
+            // A courtesy to komorebi, which would otherwise keep writing to a pipe nobody reads; never
+            // worth holding up a quit for (komorebic waits on komorebi's socket).
+            var unsubscribe = new Thread(() => Komorebic.Run("unsubscribe-pipe", PipeName)) { IsBackground = true };
+            unsubscribe.Start();
+            unsubscribe.Join(1000);
         }
     }
 }

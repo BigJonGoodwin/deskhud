@@ -41,6 +41,10 @@ namespace DeskHud
             base.WndProc(ref m);
         }
 
+        /// The daemon only queues work while the sender waits, so it answers at once; a busy or stuck
+        /// daemon must still never hang a YASB button or a script.
+        const uint SendTimeoutMs = 5000;
+
         /// False when no daemon is running.
         public static bool Send(string[] args)
         {
@@ -52,7 +56,9 @@ namespace DeskHud
             try
             {
                 var data = new Native.COPYDATASTRUCT { cbData = payload.Length * 2, lpData = buffer };
-                Native.SendMessage(daemon, Native.WM_COPYDATA, IntPtr.Zero, ref data);
+                IntPtr result;
+                if (Native.SendMessageTimeout(daemon, Native.WM_COPYDATA, IntPtr.Zero, ref data, Native.SMTO_ABORTIFHUNG, SendTimeoutMs, out result) == IntPtr.Zero)
+                    Log.Write("ipc: the daemon did not answer \"" + string.Join(" ", args) + "\" within " + SendTimeoutMs + " ms");
             }
             finally
             {

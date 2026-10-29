@@ -140,12 +140,14 @@ namespace DeskHud
         {
             if (idObject != Native.OBJID_WINDOW) return;
             string cls = Native.ClassName(hwnd);
-            if (cls == "Shell_TrayWnd" || cls == "Shell_SecondaryTrayWnd") Native.ShowWindow(hwnd, Native.SW_HIDE);
+            if (cls == "Shell_TrayWnd" || cls == "Shell_SecondaryTrayWnd") Native.ShowWindowAsync(hwnd, Native.SW_HIDE);
         }
 
+        /// Async: Explorer's windows, and ShowWindow would wait for Explorer (at quit, with deskhud's own
+        /// windows going away under it).
         static void SetVisible(bool visible)
         {
-            foreach (IntPtr bar in TaskbarWindows()) Native.ShowWindow(bar, visible ? Native.SW_SHOWNA : Native.SW_HIDE);
+            foreach (IntPtr bar in TaskbarWindows()) Native.ShowWindowAsync(bar, visible ? Native.SW_SHOWNA : Native.SW_HIDE);
         }
 
         static IEnumerable<IntPtr> TaskbarWindows()

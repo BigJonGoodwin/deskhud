@@ -174,6 +174,11 @@ first (`focus --monitor`, since GlazeWM's focus lags when you click an empty scr
 `focus --workspace N`. Win+Shift+N is `move --workspace N` then `focus --workspace N`. This needs the
 numbers as workspaces in GlazeWM's config **without** `bind_to_monitor` (the packaged config has `1`…`9`).
 A workspace with another name gets the lowest free number on the islands.
+GlazeWM starts every screen with one workspace, handed out in its own monitor order (left to right), so
+the primary screen could show 2. When deskhud connects and every screen still has just that one
+workspace, it renames them (`update-workspace-config`, through temporary names) so the primary screen
+shows the lowest number, then the others left to right, as the islands count (`GlazeWm.StartNumbering`).
+Once a screen has a second workspace nothing is renamed.
 
 **Borders.** GlazeWM takes border colours from its config file only, so deskhud sets them on each window
 itself (`DWMWA_BORDER_COLOR`, Windows 11): the focused tile in the accent, a focused tab stack in the
@@ -283,6 +288,12 @@ method on `IWindowManager` implemented in both `GlazeWm.cs` and `KomorebiWm.cs`.
 Most of these date from the komorebi version and still apply to the komorebi backend; the Windows,
 YASB and Obsidian ones apply to both.
 
+- **`deskhud quit` hung both processes.** The daemon shut down inside the WM_COPYDATA message the
+  `deskhud quit` process was waiting on (destroying the IPC window under it, asking Explorer to show the
+  taskbar), and neither ever returned. Quit is now posted to the message loop so the sender gets its
+  answer first; the taskbar comes back first, shutdown steps are bounded (Explorer is told
+  asynchronously, komorebic's unsubscribe gets 1 s) and after 3 s the process exits anyway. `deskhud
+  <verb>` gives up after 5 s (SendMessageTimeout) instead of hanging a YASB button.
 - **Upstream GlazeWM sends no event when a window's title changes.** The fork emits
   `tabbed_containers_changed` when a tab's title changes, which is all the tab strips need.
 - **GlazeWM's IPC splits every message on whitespace** (`clap` parses it), so arguments cannot carry

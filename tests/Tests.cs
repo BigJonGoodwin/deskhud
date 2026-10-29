@@ -29,6 +29,7 @@ namespace DeskHud.Tests
             Run("GlazeWM fork's recorded tabbed split", GlazeForkSample);
             Run("GlazeWM workspace numbers follow names", GlazeNumbers);
             Run("GlazeWM Win+N and Win+Shift+N commands", GlazeWorkspaceCommands);
+            Run("GlazeWM start: the primary screen gets 1", GlazeStartNumbering);
             Run("komorebi state still parses", KomorebiState);
             Run("hotkey file in GlazeWM dialect", Hotkeys);
             Run("settings: window manager, keyboard.hook, tabs", SettingsKeys);
@@ -173,6 +174,26 @@ namespace DeskHud.Tests
             Equal("focus --workspace web", Join(GlazeWm.WorkspaceCommands(s, 4, false, 0)), "a number held by a named workspace");
             Equal("move --workspace 2; focus --workspace 2", Join(GlazeWm.WorkspaceCommands(s, 2, true, 0)), "move to a number in use");
             Equal("move --workspace 6; focus --workspace 6", Join(GlazeWm.WorkspaceCommands(s, 6, true, 1)), "move to a free number");
+        }
+
+        /// GlazeWM started with workspace 1 on the left screen: the primary screen is given 1 by renaming.
+        static void GlazeStartNumbering()
+        {
+            Snapshot fresh = Snapshot.FromGlazeWm(Fixture("glazewm-fresh-three-screens.json"), false);
+            Equal("update-workspace-config --workspace 2 --name deskhud-1; update-workspace-config --workspace 1 --name deskhud-2; "
+                + "update-workspace-config --workspace deskhud-1 --name 1; update-workspace-config --workspace deskhud-2 --name 2",
+                Join(GlazeWm.StartNumbering(fresh)), "swap 1 and 2, leave 3 on the right");
+
+            // As GlazeWM shows it after those renames: nothing more to do.
+            var renamed = Fixture("glazewm-fresh-three-screens.json");
+            var monitors = Json.Arr(renamed, "monitors");
+            ((Dictionary<string, object>)Json.Arr(monitors[0], "children")[0])["name"] = "2";
+            ((Dictionary<string, object>)Json.Arr(monitors[1], "children")[0])["name"] = "1";
+            Snapshot done = Snapshot.FromGlazeWm(renamed, false);
+            Equal(1, done.Numbered()[0].Workspaces[0].Number, "primary shows 1");
+            Equal(0, GlazeWm.StartNumbering(done).Count, "already in order");
+
+            Equal(0, GlazeWm.StartNumbering(Glaze()).Count, "a screen with more than its first workspace is left alone");
         }
 
         static List<string> GlazeWM_Free(Snapshot s, int yours) { return GlazeWm.WorkspaceCommands(s, 5, false, yours); }
