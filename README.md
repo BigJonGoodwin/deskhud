@@ -158,7 +158,8 @@ takes it out, Win+[ and Win+] change tabs. deskhud shows a tab stack on the isla
 (icons grouped, the front tab lit; scrolling it changes tabs) and draws a **tab strip** along the top of
 each tabbed container on show (`Tabs.cs`): icon and title per tab, the active tab lit in the accent,
 click to switch, middle-click to close. It is a layered window just above the active tab in the z-order,
-so anything in front of that window stays in front; it follows title changes while it is up.
+so anything in front of that window stays in front. The fork keeps the top `gaps.tab_bar_height` of a
+tabbed container clear (packaged: `26px`, scaled with DPI); keep `tabs.height` the same.
 
 What deskhud reads (IPC JSON, `query monitors`): a split with `"layout": "tabbed"` is one tile whose
 tabs are every window under it, in order; the active tab is `activeChildId` (or `activeChildIndex`, or
@@ -282,9 +283,8 @@ method on `IWindowManager` implemented in both `GlazeWm.cs` and `KomorebiWm.cs`.
 Most of these date from the komorebi version and still apply to the komorebi backend; the Windows,
 YASB and Obsidian ones apply to both.
 
-- **GlazeWM sends no event when a window's title changes.** The islands do not show titles, but the
-  tab strips do, so while a strip is up deskhud listens for title changes itself (`EVENT_OBJECT_NAMECHANGE`,
-  only while some tab strip exists).
+- **Upstream GlazeWM sends no event when a window's title changes.** The fork emits
+  `tabbed_containers_changed` when a tab's title changes, which is all the tab strips need.
 - **GlazeWM's IPC splits every message on whitespace** (`clap` parses it), so arguments cannot carry
   spaces; workspace names used as numbers have none.
 

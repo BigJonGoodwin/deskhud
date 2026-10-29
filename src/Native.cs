@@ -51,7 +51,6 @@ namespace DeskHud
         public const uint EVENT_OBJECT_DESTROY = 0x8001;
         public const uint EVENT_OBJECT_SHOW = 0x8002;
         public const uint EVENT_OBJECT_LOCATIONCHANGE = 0x800B;
-        public const uint EVENT_OBJECT_NAMECHANGE = 0x800C;
         public const uint WINEVENT_OUTOFCONTEXT = 0x0000;
         public const uint WINEVENT_SKIPOWNPROCESS = 0x0002;
         public const int OBJID_WINDOW = 0;

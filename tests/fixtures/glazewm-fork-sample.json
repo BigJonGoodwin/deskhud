@@ -1,0 +1,73 @@
+{
+  "monitors": [
+    {
+      "type": "monitor", "id": "6c1a9f0e-4a43-4c1e-9d7f-0d8e1f6a2b11", "hasFocus": true,
+      "x": 0, "y": 0, "width": 1680, "height": 1050, "deviceName": "\\\\.\\DISPLAY1",
+      "childFocusOrder": ["e87afb54-73cd-43bb-b4a1-28a315995475"],
+      "children": [
+        {
+          "type": "workspace", "id": "e87afb54-73cd-43bb-b4a1-28a315995475", "name": "1", "hasFocus": true, "isDisplayed": true,
+          "x": 0, "y": 0, "width": 1680, "height": 1000, "tilingDirection": "horizontal",
+          "childFocusOrder": ["a73be94b-1071-435a-9337-1d1d0621cb1d"],
+          "children": [
+            {
+              "type": "split",
+              "id": "a73be94b-1071-435a-9337-1d1d0621cb1d",
+              "parentId": "e87afb54-73cd-43bb-b4a1-28a315995475",
+              "children": [
+                {
+                  "type": "window",
+                  "id": "662f5726-b76f-46eb-9662-a140c828fa99",
+                  "parentId": "a73be94b-1071-435a-9337-1d1d0621cb1d",
+                  "hasFocus": false,
+                  "tilingSize": 0.5,
+                  "width": 1680,
+                  "height": 1000,
+                  "x": 0,
+                  "y": 0,
+                  "state": { "type": "tiling" },
+                  "prevState": null,
+                  "displayState": "shown",
+                  "borderDelta": { "left": { "amount": 0.0, "unit": "pixel" } },
+                  "floatingPlacement": { "left": 0, "top": 0, "right": 300, "bottom": 200 },
+                  "handle": 0,
+                  "title": "Terminal",
+                  "className": "",
+                  "processName": "WindowsTerminal",
+                  "activeDrag": null
+                },
+                {
+                  "type": "window",
+                  "id": "97f74b4a-b235-4377-bf9d-2e9613b92e4b",
+                  "parentId": "a73be94b-1071-435a-9337-1d1d0621cb1d",
+                  "hasFocus": true,
+                  "tilingSize": 0.5,
+                  "width": 1680,
+                  "height": 1000,
+                  "x": 0,
+                  "y": 0,
+                  "state": { "type": "tiling" },
+                  "title": "Notes",
+                  "processName": "notepad"
+                }
+              ],
+              "childFocusOrder": [
+                "97f74b4a-b235-4377-bf9d-2e9613b92e4b",
+                "662f5726-b76f-46eb-9662-a140c828fa99"
+              ],
+              "hasFocus": true,
+              "tilingSize": 1.0,
+              "width": 1680,
+              "height": 1000,
+              "x": 0,
+              "y": 0,
+              "tilingDirection": "horizontal",
+              "layout": "tabbed",
+              "activeChildId": "97f74b4a-b235-4377-bf9d-2e9613b92e4b"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

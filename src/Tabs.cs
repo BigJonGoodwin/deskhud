@@ -8,9 +8,12 @@
 // never takes focus.
 //
 // TabStrips: one TabStripWindow per tabbed container on a workspace that is showing; made, moved and
-//   dropped as snapshots arrive. It listens for title changes (GlazeWM sends no event for those) only
-//   while some strip is up. TabStripWindow: one strip; it sits just above its active window in the
-//   z-order (Restack), not topmost, so windows and menus in front of that window stay in front.
+//   dropped as snapshots arrive. The fork sends `tabbed_containers_changed` when a tab's title changes
+//   too, so titles need no hook of deskhud's own. TabStripWindow: one strip; it sits just above its
+//   active window in the z-order (Restack), not topmost, so windows and menus in front of it stay there.
+//
+// The fork keeps the top `gaps.tab_bar_height` of a tabbed split clear of its windows (packaged:
+// 26px, scaled with DPI), and its IPC rectangle is the whole split: the strip fills that band.
 //
 // To change the look: the constants at the top of TabStripWindow; the height is `tabs.height` in
 // settings.json, which the GlazeWM fork should keep clear at the top of tabbed containers.
@@ -33,17 +36,14 @@ namespace DeskHud
         readonly Func<string[], bool> dispatch;
         readonly IconCache icons = new IconCache();
         readonly Dictionary<string, TabStripWindow> strips = new Dictionary<string, TabStripWindow>();
-        readonly Native.WinEventProc onNameChange;
         Settings settings;
         PaletteColors colors;
-        IntPtr nameHook;
 
         public TabStrips(Settings settings, PaletteColors colors, Func<string[], bool> dispatch)
         {
             this.settings = settings;
             this.colors = colors;
             this.dispatch = dispatch;
-            onNameChange = OnNameChange;
         }
 
         /// Puts up a strip for each tabbed container on a workspace that is showing, and drops the rest.
@@ -76,7 +76,6 @@ namespace DeskHud
                 strip.Show(pair.Value, colors, settings.TabsHeight);
             }
             icons.Retain(wanted.Values.SelectMany(c => c.Windows).Select(w => w.Hwnd).ToList());
-            WatchTitles();
         }
 
         public void SetPalette(PaletteColors value)
@@ -97,31 +96,8 @@ namespace DeskHud
             foreach (var strip in strips.Values) strip.Restack();
         }
 
-        /// Title changes anywhere raise this event, so the hook is only on while a strip is up.
-        void WatchTitles()
-        {
-            bool wanted = strips.Count > 0;
-            if (wanted == (nameHook != IntPtr.Zero)) return;
-            if (wanted)
-            {
-                nameHook = Native.SetWinEventHook(Native.EVENT_OBJECT_NAMECHANGE, Native.EVENT_OBJECT_NAMECHANGE, IntPtr.Zero, onNameChange,
-                    0, 0, Native.WINEVENT_OUTOFCONTEXT | Native.WINEVENT_SKIPOWNPROCESS);
-                return;
-            }
-            Native.UnhookWinEvent(nameHook);
-            nameHook = IntPtr.Zero;
-        }
-
-        void OnNameChange(IntPtr hook, uint type, IntPtr hwnd, int idObject, int idChild, uint thread, uint time)
-        {
-            if (idObject != Native.OBJID_WINDOW || hwnd == IntPtr.Zero) return;
-            foreach (var strip in strips.Values)
-                if (strip.Holds(hwnd.ToInt64())) strip.Render();
-        }
-
         public void Dispose()
         {
-            if (nameHook != IntPtr.Zero) Native.UnhookWinEvent(nameHook);
             foreach (var strip in strips.Values) strip.Close();
             strips.Clear();
             icons.Dispose();
@@ -176,8 +152,6 @@ namespace DeskHud
             }
             base.WndProc(ref m);
         }
-
-        public bool Holds(long hwnd) { return container != null && container.Windows.Any(w => w.Hwnd == hwnd); }
 
         public void Show(ContainerView value, PaletteColors palette, int logicalHeight)
         {

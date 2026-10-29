@@ -26,6 +26,7 @@ namespace DeskHud.Tests
             Run("GlazeWM monitors and workspaces", GlazeMonitors);
             Run("GlazeWM tiles, tabs and floating windows", GlazeContainers);
             Run("GlazeWM active tab fallbacks", GlazeActiveTab);
+            Run("GlazeWM fork's recorded tabbed split", GlazeForkSample);
             Run("GlazeWM workspace numbers follow names", GlazeNumbers);
             Run("GlazeWM Win+N and Win+Shift+N commands", GlazeWorkspaceCommands);
             Run("komorebi state still parses", KomorebiState);
@@ -135,6 +136,18 @@ namespace DeskHud.Tests
             Equal("11,12,13,14", string.Join(",", ws.Containers[0].Windows.Select(w => w.Hwnd)), "a nested split's windows are tabs too");
             Equal(3, ws.Containers[0].Focused, "activeChildIndex picks the active tab");
             Equal(1, ws.Containers[1].Focused, "without an active field, the last focused child is active");
+        }
+
+        /// The tabbed split from the fork's own IPC test (HANDOVER-glazewm.md), placed in a workspace.
+        static void GlazeForkSample()
+        {
+            Snapshot s = Snapshot.FromGlazeWm(Fixture("glazewm-fork-sample.json"), false);
+            ContainerView tabs = s.Current.Containers.Single();
+            Check(tabs.Tabbed, "the fork's tabbed split is a tab stack");
+            Equal("a73be94b-1071-435a-9337-1d1d0621cb1d", tabs.Id, "split id");
+            Equal(new Rectangle(0, 0, 1680, 1000), tabs.Bounds, "the split's full area, where the strip goes");
+            Equal(1, tabs.Focused, "active tab from activeChildId");
+            Equal("notepad.exe", tabs.Visible.Exe, "active tab's exe");
         }
 
         static void GlazeNumbers()
