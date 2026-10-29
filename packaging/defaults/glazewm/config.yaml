@@ -42,9 +42,11 @@ gaps:
   tab_bar_height: '26px'
 
 window_effects:
+  # Borders are off here: deskhud colours them itself from the wallpaper (accent for the focused
+  # window, the stack colour for a focused stack), and the two would repaint each other.
   focused_window:
     border:
-      enabled: true
+      enabled: false
       color: '#8aa4ff'
     hide_title_bar:
       enabled: false
@@ -56,7 +58,7 @@ window_effects:
       opacity: '95%'
   other_windows:
     border:
-      enabled: true
+      enabled: false
       color: '#2a2c33'
     hide_title_bar:
       enabled: false
