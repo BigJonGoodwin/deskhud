@@ -1,13 +1,14 @@
 // =================================================================================================
 // Daemon.cs: the long-running process that wires everything together.
 //
-// Owns the strip (left island), the keyboard hook, the komorebi feed, the weather/network ticker, the
-// taskbar hider (and its tablet-posture fix), the YASB edge probe, the wallpaper palette and the file
-// watchers (settings.json, whkdrc, and Windows' own wallpaper file). After the screens change it checks
-// that komorebi sees them as Windows does (CheckScreens) and restarts komorebi when it does not, and it
-// never starts or restarts komorebi on a komorebi.json that would not load. Everything here runs on
-// the UI thread; anything slow (komorebic calls, COM) goes through CommandQueue so the bar and the
-// keyboard never wait.
+// Owns the strips (left islands), the tab strips over tabbed containers (Tabs.cs), the keyboard hook
+// (when `keyboard.hook` is on), the window manager's feed (Wm.Current: GlazeWM or komorebi), the
+// weather/network ticker, the taskbar hider (and its tablet-posture fix), the YASB edge probe, the
+// wallpaper palette and the file watchers (settings.json, whkdrc, and Windows' own wallpaper file).
+// With komorebi, after the screens change it checks that komorebi sees them as Windows does
+// (CheckScreens) and restarts komorebi when it does not, and it never starts or restarts komorebi on a
+// komorebi.json that would not load. Everything here runs on the UI thread; anything slow (window
+// manager calls, COM) goes through CommandQueue so the bar and the keyboard never wait.
 //
 // To add a command: handle it in Dispatch if it is quick and UI-side, otherwise in Commands.Execute.
 // Then bind it in ~/.config/whkdrc as `deskhud <verb>`, or call `deskhud.exe <verb>` from YASB.
@@ -26,8 +27,8 @@ using Microsoft.Win32;
 
 namespace DeskHud
 {
-    /// The long-running side of deskhud. Everything here runs on the UI thread; komorebic calls go
-    /// through the command queue. It reacts to events only: komorebi notifications, window events,
+    /// The long-running side of deskhud. Everything here runs on the UI thread; window manager calls go
+    /// through the command queue. It reacts to events only: window manager events, window events,
     /// wallpaper, settings and posture changes. Nothing polls except the ticker's 5 second phase and
     /// the YASB edge probe at the same pace.
     sealed class Daemon : ApplicationContext
@@ -61,9 +62,12 @@ namespace DeskHud
         Dictionary<Rectangle, int> yasbEdges = new Dictionary<Rectangle, int>();
         readonly IpcWindow ipc;
         readonly Ticker ticker;
-        readonly KomorebiFeed feed;
-        readonly HotkeyRunner hotkeys;
-        readonly KeyboardHook keyboard;
+        readonly IWindowManager wm = Wm.Current;
+        readonly IDisposable feed;
+        readonly TabStrips tabs;
+        // Both null while `keyboard.hook` is off: then deskhud runs no hotkeys at all.
+        HotkeyRunner hotkeys;
+        KeyboardHook keyboard;
         readonly FileSystemWatcher hotkeyWatcher;
         readonly Timer hotkeyDebounce = new Timer { Interval = 400 };
         readonly FileSystemWatcher settingsWatcher;
@@ -110,10 +114,8 @@ namespace DeskHud
             ticker = new Ticker(() => settings, colors);
             ticker.Start();
             taskbar.Apply(settings.HideWindowsTaskbar);
-            // Hotkeys live in whkdrc but run here, from one hook that never blocks typing.
-            hotkeys = new HotkeyRunner(args => { strip.BeginInvoke(new Action(() => Dispatch(args))); return true; });
-            keyboard = new KeyboardHook(hotkeys.Enqueue, settings.WinTap);
-            keyboard.SetHotkeys(HotkeyFile.Load());
+            tabs = new TabStrips(settings, colors, Dispatch);
+            ApplyKeyboardHook();
             hotkeyWatcher = new FileSystemWatcher(Path.GetDirectoryName(HotkeyFile.FilePath), Path.GetFileName(HotkeyFile.FilePath))
             {
                 NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.Size,
@@ -123,7 +125,7 @@ namespace DeskHud
             hotkeyWatcher.Changed += hotkeysChanged;
             hotkeyWatcher.Created += hotkeysChanged;
             hotkeyWatcher.EnableRaisingEvents = true;
-            hotkeyDebounce.Tick += delegate { hotkeyDebounce.Stop(); keyboard.SetHotkeys(HotkeyFile.Load()); };
+            hotkeyDebounce.Tick += delegate { hotkeyDebounce.Stop(); if (keyboard != null) keyboard.SetHotkeys(HotkeyFile.Load()); };
             looseCheck.Tick += delegate { looseCheck.Stop(); RefreshLoose(); };
             // Windows' slideshow changes the picture without telling other apps, but it rewrites this file each time.
             string themes = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Microsoft", "Windows", "Themes");
@@ -163,8 +165,8 @@ namespace DeskHud
             SystemEvents.UserPreferenceChanged += OnUserPreferenceChanged;
             SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
 
-            feed = new KomorebiFeed(OnSnapshot, OnOnline);
-            feed.Start();
+            Log.Write("window manager: " + wm.Name + (settings.KeyboardHook ? "" : " (keyboard hook off)"));
+            feed = wm.Feed(OnSnapshot, OnOnline);
             Background.StartAll(settings, settings.StartMinimized, MinimizedElsewhere, cheatsheet.Started);
 
             RefreshPalette(false);
@@ -226,7 +228,7 @@ namespace DeskHud
                     return true;
                 case "reload":
                     ReloadSettings();
-                    keyboard.SetHotkeys(HotkeyFile.Load());
+                    if (keyboard != null) keyboard.SetHotkeys(HotkeyFile.Load());
                     RefreshPalette(true);
                     return true;
                 case "reload-yasb":
@@ -235,24 +237,21 @@ namespace DeskHud
                 case "workspace":
                 case "move-to-workspace":
                     // A number lives on one screen; a free one is made on the screen you are on (Numbers.cs).
-                    int number, monitor, index;
-                    bool create;
-                    if (snapshot == null || !int.TryParse(arg, out number) || number < 1
-                        || !WorkspaceNumbers.Place(snapshot, number, verb == "workspace", out monitor, out index, out create)) return true;
+                    int number;
+                    Action work = snapshot == null || !int.TryParse(arg, out number) || number < 1 ? null
+                        : wm.PlanWorkspace(snapshot, number, verb == "move-to-workspace");
+                    if (work == null) return true;
                     foreach (var island in Islands) island.Render(); // an empty workspace on show may have just been renumbered
-                    string command = verb == "workspace" ? "focus-monitor-workspace" : "move-to-monitor-workspace";
-                    queue.Enqueue(() =>
-                    {
-                        if (create) Komorebic.Run("ensure-workspaces", monitor.ToString(), (index + 1).ToString());
-                        Komorebic.Run(command, monitor.ToString(), index.ToString());
-                    });
+                    queue.Enqueue(work);
                     return true;
+                case "restart-wm":
                 case "restart-komorebi":
-                    queue.Enqueue(() => ReportConfig(Komorebic.Restart(), false));
+                    queue.Enqueue(() => ReportConfig(wm.Restart(), false));
                     return true;
+                case "start-wm":
                 case "start-komorebi":
-                    // From the offline bubble: with komorebi.json broken, open it rather than fail again.
-                    queue.Enqueue(() => ReportConfig(Komorebic.Start(), true));
+                    // From the offline bubble: with the config broken, open it rather than fail again.
+                    queue.Enqueue(() => ReportConfig(wm.Start(), true));
                     return true;
                 case "quit":
                     ExitThread();
@@ -277,6 +276,7 @@ namespace DeskHud
             snapshot = value;
             tray.Prune();
             foreach (var island in Islands) island.SetSnapshot(value);
+            tabs.SetSnapshot(value);
             CheckLooseSoon();
             if (value.Paused != paused || value.ConfigReloaded)
             {
@@ -296,20 +296,21 @@ namespace DeskHud
             }
             snapshot = null;
             foreach (var island in Islands) island.SetSnapshot(null);
+            tabs.SetSnapshot(null);
             CheckLooseSoon();
             // Say why, when it is komorebi.json: komorebi quits on a broken one without a word.
-            queue.Enqueue(() => ReportConfig(Komorebic.ConfigError(), false));
+            queue.Enqueue(() => ReportConfig(wm.ConfigError(), false));
         }
 
         /// From the command queue: shows komorebi.json's error (or clears it) on the islands' offline
         /// bubble, and opens the file when asked to start komorebi while it is broken.
         void ReportConfig(string error, bool openIfBroken)
         {
-            if (error != null) Log.Write("komorebi.json: " + error);
+            if (error != null) Log.Write(wm.Name + " config: " + error);
             strip.BeginInvoke(new Action(() =>
             {
                 ShowConfigError(error);
-                if (error != null && openIfBroken) OpenFile(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "komorebi.json"));
+                if (error != null && openIfBroken) OpenFile(wm.ConfigFile);
             }));
         }
 
@@ -320,6 +321,7 @@ namespace DeskHud
 
         void CheckScreensSoon()
         {
+            if (!wm.ChecksScreens) return;
             screenCheck.Stop();
             screenCheck.Start();
         }
@@ -335,7 +337,7 @@ namespace DeskHud
             string arrangement = string.Join(" ", screens.Select(r => r.X + "," + r.Y + "," + r.Width + "x" + r.Height));
             queue.Enqueue(() =>
             {
-                Snapshot fresh = Komorebic.State();
+                Snapshot fresh = wm.State();
                 if (fresh == null) return;
                 if (fresh.MatchesScreens(screens))
                 {
@@ -350,7 +352,7 @@ namespace DeskHud
                 }
                 healedFor = arrangement;
                 Log.Write("komorebi: sees the screens as " + seen + " (Windows: " + arrangement + "), restarting it");
-                ReportConfig(Komorebic.Restart(), false);
+                ReportConfig(wm.Restart(), false);
             });
         }
 
@@ -474,6 +476,7 @@ namespace DeskHud
         void OnForeground(IntPtr hwnd)
         {
             foreach (var island in Islands) island.OnForeground(hwnd, true);
+            tabs.Restack();
             CheckLooseSoon(); // a window komorebi has no event for, such as one opened while paused
             yasb.MeasureSoon(); // YASB's window title island changes width with the focus
 
@@ -564,6 +567,7 @@ namespace DeskHud
             PaletteStore.Save(value);
             WriteYasb();
             foreach (var island in Islands) island.SetPalette(PaletteFor(island));
+            tabs.SetPalette(value);
             ticker.SetPalette(value);
             ApplyBorders();
         }
@@ -602,7 +606,7 @@ namespace DeskHud
         {
             PaletteColors current = colors;
             bool isPaused = paused;
-            queue.Enqueue(() => Borders.Apply(current, isPaused));
+            queue.Enqueue(() => wm.ApplyBorders(current, isPaused));
         }
 
         void ReloadSettings()
@@ -610,10 +614,35 @@ namespace DeskHud
             Settings previous = settings;
             settings = Settings.Load();
             foreach (var island in Islands) island.SetSettings(settings);
+            tabs.SetSettings(settings);
             taskbar.Apply(settings.HideWindowsTaskbar);
-            keyboard.SetTapAction(settings.WinTap);
+            ApplyKeyboardHook();
+            if (previous.WindowManager != settings.WindowManager) Log.Write("window_manager.backend changed: restart deskhud to switch to " + settings.WindowManager);
             if (previous.WeatherCity != settings.WeatherCity || previous.Fahrenheit != settings.Fahrenheit) ticker.Refresh();
             if (previous.WallpaperFolder != settings.WallpaperFolder) RefreshPalette(true);
+        }
+
+        /// `keyboard.hook` on: deskhud runs whkdrc's hotkeys from its own hook and owns the Win key.
+        /// Off: no hook and no hotkeys, so Windows (and GlazeWM's own keybindings) have the keys.
+        void ApplyKeyboardHook()
+        {
+            if (settings.KeyboardHook == (keyboard != null))
+            {
+                if (keyboard != null) keyboard.SetTapAction(settings.WinTap);
+                return;
+            }
+            if (settings.KeyboardHook)
+            {
+                // Hotkeys live in whkdrc but run here, from one hook that never blocks typing.
+                hotkeys = new HotkeyRunner(args => { strip.BeginInvoke(new Action(() => Dispatch(args))); return true; });
+                keyboard = new KeyboardHook(hotkeys.Enqueue, settings.WinTap);
+                keyboard.SetHotkeys(HotkeyFile.Load());
+                return;
+            }
+            keyboard.Dispose();
+            hotkeys.Dispose();
+            keyboard = null;
+            hotkeys = null;
         }
 
         static void OpenFile(string path)
@@ -657,8 +686,10 @@ namespace DeskHud
                 looseCheck.Dispose();
                 if (wallpaperWatcher != null) wallpaperWatcher.Dispose();
                 wallpaperDebounce.Dispose();
-                keyboard.Dispose();
-                hotkeys.Dispose();
+                if (keyboard != null) keyboard.Dispose();
+                if (hotkeys != null) hotkeys.Dispose();
+                tabs.Dispose();
+                wm.ResetBorders();
                 yasb.Dispose();
                 postureSettle.Dispose();
                 screenCheck.Dispose();

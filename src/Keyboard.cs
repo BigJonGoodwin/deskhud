@@ -1,7 +1,9 @@
 // =================================================================================================
 // Keyboard.cs: all hotkeys.
 //
-// HotkeyFile: reads ~/.config/whkdrc (whkd's format, kept so YASB's hotkey list can show it).
+// HotkeyFile: reads ~/.config/whkdrc (whkd's format, kept so YASB's hotkey list can show it). Lines run
+//   `deskhud <verb>`, `glazewm <ipc message>` (`glazewm command focus --direction left`), `komorebic
+//   <args>`, or anything else through cmd. With `keyboard.hook` off in settings.json none of this runs.
 // KeyboardHook: one low-level keyboard hook on its own thread. It matches keys, queues commands, and
 //   stops a lone Win tap from opening Start. It must never block: Windows holds every keystroke until
 //   the hook answers.
@@ -41,6 +43,7 @@ namespace DeskHud
     static class HotkeyFile
     {
         static readonly string[] RepeatingVerbs = { "resize-axis", "resize-edge", "focus", "move", "cycle-focus", "cycle-stack", "cycle-move" };
+        static readonly string[] RepeatingGlazeVerbs = { "focus", "move", "resize" };
 
         public static string FilePath
         {
@@ -104,9 +107,21 @@ namespace DeskHud
             }
 
             string[] words = command.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-            hotkey.Repeats = words.Length > 1 && words[0].Equals("komorebic", StringComparison.OrdinalIgnoreCase)
-                && RepeatingVerbs.Contains(words[1].ToLowerInvariant());
+            hotkey.Repeats = Repeats(words.Select(w => w.ToLowerInvariant()).ToArray());
             return hotkey;
+        }
+
+        /// Held keys keep firing for resizing, focus, moving and cycling, in any of the three dialects.
+        static bool Repeats(string[] words)
+        {
+            if (words.Length < 2) return false;
+            switch (words[0])
+            {
+                case "komorebic": return RepeatingVerbs.Contains(words[1]);
+                case "glazewm": return words.Length > 2 && (words[1] == "command" || words[1] == "c") && RepeatingGlazeVerbs.Contains(words[2]);
+                case "deskhud": return words[1] == "cycle-tab";
+                default: return false;
+            }
         }
 
         static Mods Modifier(string name)
@@ -372,7 +387,8 @@ namespace DeskHud
     }
 
     /// Runs hotkey commands one at a time on its own thread. A command that is already waiting is not
-    /// queued again, so a held key can never build a backlog: you get as many resizes as komorebi can do.
+    /// queued again, so a held key can never build a backlog: you get as many resizes as the window
+    /// manager can do.
     sealed class HotkeyRunner : IDisposable
     {
         readonly BlockingCollection<string> queue = new BlockingCollection<string>();
@@ -413,7 +429,13 @@ namespace DeskHud
             string program = words[0].ToLowerInvariant();
 
             if (program == "deskhud" || program == "deskhud.exe") deskhud(words.Skip(1).ToArray());
-            else if (program == "komorebic" || program == "komorebic.exe") Komorebic.Run(words.Skip(1).ToArray());
+            else if (program == "komorebic" || program == "komorebic.exe" || program == "glazewm")
+            {
+                // Straight from this thread, so held keys keep this runner's one-at-a-time pace.
+                IWindowManager wm = Wm.Current;
+                if (program == "glazewm" ? wm is GlazeWm : wm is KomorebiWm) wm.Run(words.Skip(1).ToArray());
+                else Log.Write("hotkey \"" + command + "\": the window manager in use is " + wm.Name);
+            }
             else Process.Start(new ProcessStartInfo("cmd.exe", "/c " + command) { UseShellExecute = false, CreateNoWindow = true });
         }
 

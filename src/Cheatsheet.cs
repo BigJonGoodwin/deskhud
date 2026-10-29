@@ -137,7 +137,7 @@ namespace DeskHud
             {
                 if (!floating && i % 3 == 0)
                 {
-                    Snapshot state = Komorebic.State();
+                    Snapshot state = Wm.Current.State();
                     if (state != null)
                     {
                         int monitor, workspace, container, slot;
@@ -145,7 +145,7 @@ namespace DeskHud
                         floating = known && container < 0;
                         ContainerView focused = state.FocusedContainer;
                         if (known && container >= 0 && focused != null && focused.Visible.Hwnd == window.ToInt64())
-                            Komorebic.Run("toggle-float");
+                            Wm.Current.ToggleFloat();
                     }
                 }
                 Place(window, spot);

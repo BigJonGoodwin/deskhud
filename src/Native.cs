@@ -13,6 +13,7 @@ namespace DeskHud
         public const int GWL_STYLE = -16, GWL_EXSTYLE = -20;
         public const long WS_CAPTION = 0x00C00000;
         public const uint GW_OWNER = 4;
+        public const uint GW_HWNDPREV = 3;
         public const int DWMWA_CLOAKED = 14;
         public const int WS_EX_TOPMOST = 0x00000008;
         public const int WS_EX_TOOLWINDOW = 0x00000080;
@@ -50,6 +51,7 @@ namespace DeskHud
         public const uint EVENT_OBJECT_DESTROY = 0x8001;
         public const uint EVENT_OBJECT_SHOW = 0x8002;
         public const uint EVENT_OBJECT_LOCATIONCHANGE = 0x800B;
+        public const uint EVENT_OBJECT_NAMECHANGE = 0x800C;
         public const uint WINEVENT_OUTOFCONTEXT = 0x0000;
         public const uint WINEVENT_SKIPOWNPROCESS = 0x0002;
         public const int OBJID_WINDOW = 0;

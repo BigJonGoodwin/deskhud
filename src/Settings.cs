@@ -21,6 +21,18 @@ namespace DeskHud
     /// ~/.config/deskhud/settings.json. Missing keys fall back to the defaults below.
     sealed class Settings
     {
+        /// "glazewm" or "komorebi" (WindowManager.cs). Read at start; a change takes a deskhud restart.
+        public string WindowManager = "glazewm";
+        /// How `start-wm` starts GlazeWM: a name on PATH or a full path.
+        public string GlazeWmExe = "glazewm.exe";
+
+        /// deskhud's own keyboard hook runs the hotkey file and owns the Win key. Off: no deskhud hotkeys
+        /// at all, and Win combos are left to Windows (and to GlazeWM's own keybindings).
+        public bool KeyboardHook = true;
+
+        /// The tab strip over each tabbed container, in logical pixels.
+        public int TabsHeight = 26;
+
         public string WeatherCity = "";
         public bool Fahrenheit = true;
         public double WeatherRefreshHours = 8;
@@ -71,6 +83,12 @@ namespace DeskHud
             try
             {
                 object root = Json.Parse(File.ReadAllText(Paths.SettingsFile));
+
+                var wm = Json.Obj(root, "window_manager");
+                settings.WindowManager = Json.Str(wm, "backend", settings.WindowManager).Trim().ToLowerInvariant();
+                settings.GlazeWmExe = Json.Str(wm, "glazewm_exe", settings.GlazeWmExe).Trim();
+                settings.KeyboardHook = Json.Bool(Json.Obj(root, "keyboard"), "hook", settings.KeyboardHook);
+                settings.TabsHeight = Math.Max(16, (int)Json.Long(Json.Obj(root, "tabs"), "height", settings.TabsHeight));
 
                 var weather = Json.Obj(root, "weather");
                 settings.WeatherCity = Json.Str(weather, "city", settings.WeatherCity).Trim();

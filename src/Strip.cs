@@ -5,7 +5,7 @@
 // two read as one bar. It shows the Windows button, the touch keyboard button (tablet posture), each
 // workspace (app icons grouped by stack, with a live layout map for the focused one), untiled windows
 // (dashed bubble) and minimized windows (tray bubble). It repaints only when something changes: a
-// komorebi event, a palette, a hover, or an animation frame.
+// window manager event, a palette, a hover, or an animation frame.
 //
 // To change sizes: the constants at the top of StripWindow (logical pixels, scaled by the monitor).
 // Colours: Palette.cs. Glows: Glow / DeepBubble / LightPool. Clicks and scrolling: OnMouseUp /
@@ -692,8 +692,8 @@ namespace DeskHud
         float Offline(float x)
         {
             // With komorebi.json broken, komorebi quits at every start; say so, and the click opens the file.
-            string text = komorebiError == null ? "komorebi offline · click to start"
-                : "komorebi.json: " + (komorebiError.Length > 60 ? komorebiError.Substring(0, 57) + "..." : komorebiError) + " · click to fix";
+            string text = komorebiError == null ? Wm.Current.Name + " offline · click to start"
+                : Wm.Current.Name + " config: " + (komorebiError.Length > 60 ? komorebiError.Substring(0, 57) + "..." : komorebiError) + " · click to fix";
             var rect = new RectangleF(x, BubbleTop, TextWidth(text, smallFont) + S(20), S(BubbleH));
             AddHit(HitKind.Offline, rect);
             if (drawing)
@@ -1438,7 +1438,7 @@ namespace DeskHud
                     if (right) ShowHomeMenu(hit.Bounds);
                     break;
                 case HitKind.Offline:
-                    if (left) dispatch(new[] { "start-komorebi" });
+                    if (left) dispatch(new[] { "start-wm" });
                     break;
                 case HitKind.Workspace:
                     if (left) GoTo(hit.Workspace);
@@ -1453,8 +1453,8 @@ namespace DeskHud
                     // The map acts on the focused workspace, so bring this monitor into focus first.
                     if (left || right || middle) FocusThisMonitor();
                     if (left) dispatch(new[] { "snap" });
-                    if (right) dispatch(new[] { "komorebic", "cycle-layout", "next" });
-                    if (middle) dispatch(new[] { "komorebic", "flip-layout", "horizontal" });
+                    if (right) dispatch(new[] { "layout", "next" });
+                    if (middle) dispatch(new[] { "layout", "flip" });
                     break;
                 case HitKind.Tray:
                     if (left) dispatch(new[] { "restore" });
@@ -1481,15 +1481,15 @@ namespace DeskHud
             if (hit.Kind == HitKind.Map)
             {
                 FocusThisMonitor();
-                dispatch(new[] { "komorebic", "cycle-layout", direction });
+                dispatch(new[] { "layout", direction });
             }
             else if (hit.Kind == HitKind.Tray || hit.Kind == HitKind.TrayWindow)
                 dispatch(new[] { "tray", direction });
             else if (hit.Kind == HitKind.Window && hit.StackHwnd != 0)
             {
-                // Scrolling a stack flips through its windows.
+                // Scrolling a stack flips through its windows (its tabs).
                 dispatch(new[] { "focus-window", hit.StackHwnd.ToString() });
-                dispatch(new[] { "komorebic", "cycle-stack", direction });
+                dispatch(new[] { "cycle-tab", direction });
             }
             else
                 Cycle(e.Delta > 0 ? -1 : 1);
@@ -1526,10 +1526,9 @@ namespace DeskHud
                     return "Workspace " + NumberOf(ws) + "  ·  " + windows + (ws.Index == view.FocusedWorkspace ? "" : "  ·  click to go there")
                         + "  ·  right-click: layout";
                 case HitKind.Map:
-                    if (snapshot.Paused) return "komorebi is paused  ·  Win+Shift+P resumes";
+                    if (snapshot.Paused) return Wm.Current.Name + " is paused  ·  Win+Shift+P resumes";
                     var current = view.Current;
-                    return "Layout: " + (current == null ? "?" : current.Monocle ? "monocle" : current.Layout)
-                        + "\nClick: snap 2/3, 1/3, 1/2  ·  right-click: next layout  ·  middle: flip  ·  scroll: change layout";
+                    return "Layout: " + (current == null ? "?" : current.Monocle ? "monocle" : current.Layout) + "\n" + Wm.Current.MapHelp;
                 case HitKind.Tray:
                     return "Minimized windows  ·  click: bring back  ·  right-click: all  ·  scroll: pick";
                 case HitKind.Window:
@@ -1558,17 +1557,17 @@ namespace DeskHud
 
         // ---- this island's monitor ----
 
-        /// Workspace `index` on this island's own monitor (komorebic's focus-workspace would use whichever
+        /// Workspace `index` on this island's own monitor (a plain focus-workspace would use whichever
         /// monitor has focus).
         void GoTo(int index)
         {
             if (view == null) return;
-            dispatch(new[] { "komorebic", "focus-monitor-workspace", view.Index.ToString(), index.ToString() });
+            dispatch(new[] { "go-to", view.Index.ToString(), index.ToString() });
         }
 
         void FocusThisMonitor()
         {
-            if (view != null && !MonitorFocused) dispatch(new[] { "komorebic", "focus-monitor", view.Index.ToString() });
+            if (view != null && !MonitorFocused) dispatch(new[] { "focus-monitor", view.Index.ToString() });
         }
 
         /// Scrolling: the next or previous workspace the island shows, in number order, wrapping round.
@@ -1611,7 +1610,7 @@ namespace DeskHud
             menu.Item("Next wallpaper", Glyphs.Wallpaper, colors.NextWall, () => dispatch(new[] { "wallpaper", "next", "here" }));
             menu.Item("Open settings.json", Glyphs.Settings, colors.InkSoft, () => dispatch(new[] { "settings" }));
             menu.Separator();
-            menu.Item("Restart komorebi", Glyphs.Refresh, colors.Stack[1], () => dispatch(new[] { "restart-komorebi" }));
+            menu.Item("Restart " + Wm.Current.Name, Glyphs.Refresh, colors.Stack[1], () => dispatch(new[] { "restart-wm" }));
             menu.Item("Reload YASB", Glyphs.Bar, colors.Stack[3], () => dispatch(new[] { "reload-yasb" }));
             menu.Separator();
             menu.Item("Quit deskhud", Glyphs.Power, colors.Negative, () => dispatch(new[] { "quit" }));
@@ -1637,7 +1636,7 @@ namespace DeskHud
             menu.Item(floating ? "Tile it" : "Float it", floating ? Glyphs.Tile : Glyphs.Float, tone, () => dispatch(new[] { "window", id, "float" }));
             menu.Item("Fill the workspace (monocle)", Glyphs.Monocle, colors.Stack[2], () => dispatch(new[] { "window", id, "monocle" }));
             if (container != null && container.Windows.Count > 1)
-                menu.Item("Pop out of the stack", Glyphs.Unstack, colors.Stack[1], () => dispatch(new[] { "window", id, "unstack" }));
+                menu.Item(container.Tabbed ? "Pop out of the tabs" : "Pop out of the stack", Glyphs.Unstack, colors.Stack[1], () => dispatch(new[] { "window", id, "unstack" }));
             var move = menu.Submenu("Move to workspace", Glyphs.Workspaces, colors.Accent);
             // Every screen's numbered workspaces (moving to another screen's sends the window there),
             // then a new one on this screen with the lowest free number.
@@ -1674,33 +1673,19 @@ namespace DeskHud
             menu.Header("Workspace " + NumberOf(ws) + WindowCount(ws), menu.Dot(colors.StackColor(ws.Index)), () => GoTo(ws.Index));
             menu.Separator();
             var layouts = menu.Submenu("Layout", Glyphs.Tile, colors.Accent);
-            foreach (var layout in Layouts)
+            foreach (var layout in Wm.Current.Layouts)
             {
                 string value = layout[1];
                 menu.Child(layouts, layout[2], menu.Glyph(Glyphs.Tile, colors.InkSoft), !ws.Monocle && ws.Layout == layout[0],
-                    () => dispatch(new[] { "komorebic", "workspace-layout", monitor, index, value }));
+                    () => dispatch(new[] { "workspace-layout", monitor, index, value }));
             }
             if (ws.Index == view.FocusedWorkspace && MonitorFocused)
             {
                 menu.Item("Snap the split: 2/3, 1/3, 1/2", Glyphs.Monocle, colors.Stack[2], () => dispatch(new[] { "snap" }));
-                menu.Item("Even out the sizes (retile)", Glyphs.Refresh, colors.Stack[1], () => dispatch(new[] { "komorebic", "retile" }));
+                menu.Item("Even out the sizes (retile)", Glyphs.Refresh, colors.Stack[1], () => dispatch(new[] { "retile" }));
             }
             ShowMenu(menu, hit.Bounds);
         }
-
-        /// komorebi's layouts: the name in its state, the komorebic value, and what the menu says.
-        static readonly string[][] Layouts =
-        {
-            new[] { "BSP", "bsp", "BSP (split in halves)" },
-            new[] { "Columns", "columns", "Columns" },
-            new[] { "Rows", "rows", "Rows" },
-            new[] { "VerticalStack", "vertical-stack", "Main + vertical stack" },
-            new[] { "RightMainVerticalStack", "right-main-vertical-stack", "Vertical stack + main" },
-            new[] { "HorizontalStack", "horizontal-stack", "Main + horizontal stack" },
-            new[] { "UltrawideVerticalStack", "ultrawide-vertical-stack", "Ultrawide" },
-            new[] { "Grid", "grid", "Grid" },
-            new[] { "Scrolling", "scrolling", "Scrolling" },
-        };
 
         void ShowTrayMenu(Hit hit)
         {
