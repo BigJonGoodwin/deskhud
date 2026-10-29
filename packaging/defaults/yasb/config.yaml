@@ -1,0 +1,626 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/amnweb/yasb/main/schema.json
+#
+# deskhud theme for YASB: the top bar of the deskhud-suite desktop (GlazeWM + YASB + deskhud), in
+# YASB's adaptive style: a black rail fused to the screen bezel with islands hanging off it.
+# Installed by deskhud-suite's install.ps1; the source is themes/deskhud/ in the YASB fork.
+#
+# The left island (home, workspaces, stacks, minimized windows) is drawn by deskhud, so `left` stays
+# empty here. Its outline must match this bar: keep `dimensions.height` and the .yasb-bar.adaptive
+# values in styles.css in sync with "bar" in ~/.config/deskhud/settings.json.
+#
+# How the whole setup fits together, and how to edit it: deskhud's README
+# (github.com/BigJonGoodwin/deskhud). deskhud.exe lives in %LOCALAPPDATA%\Programs\deskhud-suite\bin
+# (also on your PATH); the buttons below call it there.
+#
+# No deskhud? Put a GlazeWM workspaces widget in `left` instead, for example:
+#   glazewm_workspaces:
+#     type: "glazewm.workspaces.GlazewmWorkspacesWidget"
+#     options:
+#       offline_label: "GlazeWM offline"
+#       hide_if_offline: true
+#
+# Icons: use Nerd Font Material Design glyphs (written as surrogate-pair escapes, e.g. U+F05DA, the book). YASB draws
+# Font Awesome's U+F000-U+F0FF range in the wrong font (the book showed as "Ḩ", chevrons as "5"/"♠").
+
+watch_stylesheet: true
+watch_config: true
+debug: false
+update_check: true
+
+# GlazeWM entries in YASB's tray menu. Start goes through the logon task so GlazeWM does not run as a
+# child of YASB. Hotkeys are run by deskhud (from ~/.config/whkdrc) unless its keyboard.hook setting is off,
+# in which case GlazeWM's own keybindings apply.
+glazewm:
+  start_command: "schtasks /run /tn \"\\deskhud-suite\\GlazeWM\""
+  stop_command: "%LOCALAPPDATA%\\Programs\\deskhud-suite\\bin\\glazewm.exe command wm-exit"
+  reload_command: "%LOCALAPPDATA%\\Programs\\deskhud-suite\\bin\\glazewm.exe command wm-reload-config"
+
+bars:
+  primary-bar:
+    enabled: true
+    screens: ["*"]
+    class_name: "yasb-bar"
+    style: "adaptive"
+    # The gap widget splits the right group into two islands: diagnostics (timer, weather/network,
+    # CPU/RAM) and controls (tray, wifi/sound/battery, clock, system).
+    style_adaptive_exclude: ["island_gap_2"]
+    alignment:
+      position: "top"
+      align: "center"
+    animation:
+      enabled: true
+      duration: 200
+    window_flags:
+      always_on_top: true
+      windows_app_bar: true
+      hide_on_fullscreen: false
+    dimensions:
+      width: "100%"
+      height: 40
+    padding:
+      top: 0
+      left: 0
+      bottom: 0
+      right: 0
+    # Status sits on the right; what's playing gets the centre, an island that only exists while
+    # something plays (its glow takes the album art's colour). deskhud's island on the left grows into
+    # the open middle and stops short of whichever YASB island comes first (Yasb.cs measures it).
+    # (The window-title island is gone: the left island already shows the focused app.)
+    widgets:
+      left: []
+      center:
+        - "media"
+        - "visualizer"
+      right:
+        - "pomodoro"
+        - "ticker"
+        - "stats"
+        - "island_gap_2"
+        - "tray_group"
+        - "hud"
+        - "clock"
+        - "system"
+
+widgets:
+  # ---------- what is playing (the island appears only while something plays) ----------
+
+  media:
+    type: "yasb.media.MediaWidget"
+    options:
+      label: "{title}"
+      label_alt: "{artist} \u00b7 {title}"
+      hide_empty: true
+      show_thumbnail: true
+      thumbnail_alpha: 70
+      thumbnail_padding: 8
+      thumbnail_corner_radius: 10
+      symmetric_corner_radius: true
+      thumbnail_edge_fade: true
+      controls_left: false
+      controls_hide: false
+      max_field_size:
+        label: 18
+        label_alt: 28
+      scrolling_label:
+        enabled: true
+        update_interval_ms: 60
+        style: "bounce-ease"
+        separator: " \u00b7 "
+        label_padding: 1
+      icons:
+        prev_track: "\udb81\udcae"
+        next_track: "\udb81\udcad"
+        play: "\udb81\udc0a"
+        pause: "\udb80\udfe4"
+      media_menu:
+        blur: true
+        round_corners: true
+        round_corners_type: "normal"
+        border_color: "System"
+        alignment: "center"
+        direction: "down"
+        offset_top: 8
+        thumbnail_corner_radius: 10
+        thumbnail_size: 110
+        show_source: true
+      callbacks:
+        on_left: "toggle_media_menu"
+        on_right: "toggle_label"
+
+  visualizer:
+    type: "yasb.audio_visualizer.AudioVisualizerWidget"
+    options:
+      style: "bars"
+      height: 12
+      mirror: true
+      channels: "mono"
+      smoothness: 70
+      sensitivity: 55
+      framerate: 20
+      freq_min: 60
+      freq_max: 10000
+      hide_idle: true
+      hide_idle_after: 2500
+      bars:
+        count: 5
+        width: 2
+        gap: 2
+
+  # Invisible spacer between the diagnostics island and the controls island (style_adaptive_exclude).
+  island_gap_2:
+    type: "yasb.custom.CustomWidget"
+    options:
+      label: ""
+      label_alt: ""
+      label_placeholder: ""
+      class_name: "island-gap"
+      exec_options:
+        run_once: true
+      callbacks:
+        on_left: "do_nothing"
+
+  # ---------- diagnostics, then controls ----------
+
+  pomodoro:
+    type: "yasb.pomodoro.PomodoroWidget"
+    options:
+      label: "<span>{icon}</span>{remaining}"
+      label_alt: "<span>{icon}</span>{session}/{total_sessions}"
+      work_duration: 25
+      break_duration: 5
+      long_break_duration: 15
+      long_break_interval: 4
+      auto_start_breaks: true
+      auto_start_work: false
+      icons:
+        work: "\uf2f2"
+        break: "\udb80\udd76"
+        paused: "\uf2f2"
+      # Right-click: the built-in panel with progress, sessions, and start / reset / skip.
+      menu:
+        blur: true
+        round_corners: true
+        alignment: "center"
+        direction: "down"
+        offset_top: 8
+      callbacks:
+        on_left: "toggle_timer"
+        on_middle: "reset_timer"
+        on_right: "toggle_menu"
+
+  # Weather and network traffic share one slot; deskhud writes ticker.json and alternates the text.
+  ticker:
+    type: "yasb.custom.CustomWidget"
+    options:
+      label: "{data[label]}"
+      label_alt: "{data[label]}"
+      label_placeholder: ""
+      class_name: "ticker"
+      tooltip: true
+      tooltip_label: "{data[tip]}"
+      exec_options:
+        run_cmd: "cmd /c type %LOCALAPPDATA%\\deskhud\\ticker.json"
+        run_interval: 2500
+        return_format: "json"
+        hide_empty: true
+        use_shell: false
+      callbacks:
+        on_left: "exec %LOCALAPPDATA%\\Programs\\deskhud-suite\\bin\\deskhud.exe weather refresh"
+        on_middle: "do_nothing"
+        on_right: "do_nothing"
+
+  # CPU and RAM always show; click the chevron to slide out the GPU.
+  stats:
+    type: "yasb.grouper.GrouperWidget"
+    options:
+      class_name: "grouper stats"
+      widgets: ["cpu", "memory", "gpu"]
+      collapse_options:
+        enabled: true
+        exclude_widgets: ["cpu", "memory"]
+        expanded_label: "\udb80\udd42"
+        collapsed_label: "\udb80\udd41"
+        label_position: "right"
+
+  cpu:
+    type: "yasb.cpu.CpuWidget"
+    options:
+      label: "<span>\uf4bc</span>{info[percent][total]}%"
+      label_alt: "<span>\uf4bc</span>{info[histograms][cpu_percent]}"
+      hide_decimal: true
+      # The number stays plain until high (amber, over 70%) and critical (red, over 90%).
+      cpu_thresholds:
+        low: 40
+        medium: 70
+        high: 90
+      update_interval: 2000
+      histogram_num_columns: 5
+      callbacks:
+        on_left: "toggle_label"
+        on_right: "exec cmd.exe /c start taskmgr"
+
+  memory:
+    type: "yasb.memory.MemoryWidget"
+    options:
+      label: "<span>\uefc5</span>{virtual_mem_percent}%"
+      label_alt: "<span>\uefc5</span>{virtual_mem_free} free"
+      hide_decimal: true
+      # Windows keeps RAM around 70% busy, so amber starts over 80% and red over 92%.
+      memory_thresholds:
+        low: 50
+        medium: 80
+        high: 92
+      update_interval: 5000
+      callbacks:
+        on_left: "toggle_label"
+
+  # Slow refresh on purpose: polling the NVIDIA chip keeps it awake and costs battery.
+  gpu:
+    type: "yasb.gpu.GpuWidget"
+    options:
+      label: "<span>\udb82\udcae</span>{info[utilization]}%"
+      label_alt: "<span>\udb82\udcae</span>{info[temp]}\u00b0"
+      update_interval: 10000
+      callbacks:
+        on_left: "toggle_label"
+
+  tray_group:
+    type: "yasb.grouper.GrouperWidget"
+    options:
+      class_name: "grouper tray-group"
+      widgets: ["wallpaper", "systray"]
+      collapse_options:
+        enabled: false
+
+  # Left: a new wallpaper on this screen only (`here`: the screen you clicked; the slideshow keeps
+  # running). Right: this screen's previous one. The icon takes the next wallpaper's colour, or the
+  # current one's while the slideshow shuffles.
+  wallpaper:
+    type: "yasb.custom.CustomWidget"
+    options:
+      label: "<span>\udb80\udee9</span>"
+      label_alt: "<span>\udb80\udee9</span>"
+      class_name: "wallpaper-button"
+      tooltip: true
+      tooltip_label: "New wallpaper on this screen  ·  right-click: its previous one"
+      exec_options:
+        run_once: true
+      callbacks:
+        on_left: "exec %LOCALAPPDATA%\\Programs\\deskhud-suite\\bin\\deskhud.exe wallpaper next here"
+        on_middle: "do_nothing"
+        on_right: "exec %LOCALAPPDATA%\\Programs\\deskhud-suite\\bin\\deskhud.exe wallpaper prev here"
+
+  systray:
+    type: "yasb.systray.SystrayWidget"
+    options:
+      class_name: "systray"
+      label_collapsed: "\udb80\udd40"
+      label_expanded: "\udb80\udd43"
+      label_position: "right"
+      icon_size: 16
+      pin_click_modifier: "ctrl"
+      show_unpinned: false
+      show_in_popup: true
+      icons_per_row: 5
+      use_hook: true
+      popup:
+        blur: true
+        round_corners: true
+        round_corners_type: "normal"
+        border_color: "System"
+        alignment: "center"
+        direction: "down"
+        offset_top: 8
+        offset_left: 0
+
+  hud:
+    type: "yasb.grouper.GrouperWidget"
+    options:
+      class_name: "grouper hud"
+      widgets: ["wifi", "bluetooth", "volume", "battery"]
+      collapse_options:
+        enabled: false
+
+  wifi:
+    type: "yasb.wifi.WifiWidget"
+    options:
+      label: "<span>{wifi_icon}</span>"
+      label_alt: "<span>{wifi_icon}</span>{wifi_name}"
+      update_interval: 5000
+      wifi_icons: ["\udb82\udd2e", "\udb82\udd1f", "\udb82\udd22", "\udb82\udd25", "\udb82\udd28"]
+      ethernet_label: "<span>{wifi_icon}</span>"
+      ethernet_label_alt: "<span>{wifi_icon}</span>{ip_addr}"
+      ethernet_icon: "\ueba9"
+      callbacks:
+        on_left: "toggle_menu"
+        on_middle: "toggle_label"
+        on_right: "exec cmd.exe /c start ms-settings:network-wifi"
+      menu_config:
+        blur: true
+        round_corners: true
+        round_corners_type: "normal"
+        border_color: "System"
+        alignment: "right"
+        direction: "down"
+        offset_top: 8
+
+  bluetooth:
+    type: "yasb.bluetooth.BluetoothWidget"
+    options:
+      label: "<span>{icon}</span>"
+      label_alt: "<span>{icon}</span>{device_name}"
+      label_no_device: "No devices"
+      max_length: 18
+      tooltip: true
+      icons:
+        bluetooth_on: "\udb80\udcaf"
+        bluetooth_off: "\udb80\udcb2"
+        bluetooth_connected: "\udb80\udcb1"
+      callbacks:
+        on_left: "toggle_menu"
+        on_middle: "toggle_label"
+        on_right: "exec cmd.exe /c start ms-settings:bluetooth"
+      menu_config:
+        blur: true
+        round_corners: true
+        round_corners_type: "normal"
+        border_color: "System"
+        alignment: "right"
+        direction: "down"
+        offset_top: 8
+
+  volume:
+    type: "yasb.volume.VolumeWidget"
+    options:
+      label: "<span>{icon}</span>"
+      label_alt: "<span>{icon}</span>{level}"
+      tooltip: true
+      scroll_step: 2
+      slider_beep: false
+      icons:
+        muted: "\udb81\udd81"
+        "10": "\udb81\udd7f"
+        "30": "\udb81\udd7f"
+        "60": "\udb81\udd80"
+        "100": "\udb81\udd7e"
+      callbacks:
+        on_left: "toggle_volume_menu"
+        on_middle: "toggle_label"
+        on_right: "toggle_mute"
+      audio_menu:
+        blur: true
+        round_corners: true
+        round_corners_type: "normal"
+        border_color: "System"
+        alignment: "right"
+        direction: "down"
+        offset_top: 8
+        show_apps: true
+        show_app_labels: false
+        show_app_icons: true
+        show_apps_expanded: false
+
+  battery:
+    type: "yasb.battery.BatteryWidget"
+    options:
+      label: "<span>{icon}</span>{percent}%"
+      label_alt: "<span>{icon}</span>{time_remaining}"
+      update_interval: 10000
+      time_remaining_natural: true
+      hide_unsupported: true
+      charging_options:
+        icon_format: "{charging_icon}"
+        blink_charging_icon: false
+      status_thresholds:
+        critical: 10
+        low: 25
+        medium: 75
+        high: 95
+        full: 100
+      status_icons:
+        icon_charging: "\udb85\udc0b"
+        icon_critical: "\uf244"
+        icon_low: "\uf243"
+        icon_medium: "\uf242"
+        icon_high: "\uf241"
+        icon_full: "\uf240"
+      callbacks:
+        on_left: "toggle_label"
+        on_right: "exec cmd.exe /c start ms-settings:batterysaver"
+
+  # Date and time are two clocks in one bubble so each can take its own colour (one clock styles all its
+  # text alike). The date only needs to refresh once a minute.
+  clock:
+    type: "yasb.grouper.GrouperWidget"
+    options:
+      class_name: "grouper clock"
+      widgets: ["date", "time"]
+      collapse_options:
+        enabled: false
+
+  date:
+    type: "yasb.clock.ClockWidget"
+    options:
+      label: "{%a %d}"
+      label_alt: "{%A, %d %B %Y}"
+      class_name: "date"
+      update_interval: 60000
+      tooltip: false
+      calendar: &calendar
+        blur: true
+        round_corners: true
+        alignment: "right"
+        direction: "down"
+        offset_top: 8
+        show_week_numbers: true
+      callbacks:
+        on_left: "toggle_calendar"
+        on_middle: "do_nothing"
+        on_right: "toggle_label"
+
+  time:
+    type: "yasb.clock.ClockWidget"
+    options:
+      label: "{%#I:%M %p}"
+      label_alt: "{%#I:%M:%S %p}"
+      class_name: "time"
+      update_interval: 1000
+      tooltip: true
+      calendar: *calendar
+      callbacks:
+        on_left: "toggle_calendar"
+        on_middle: "do_nothing"
+        on_right: "toggle_label"
+
+  system:
+    type: "yasb.grouper.GrouperWidget"
+    options:
+      class_name: "grouper system"
+      widgets: ["notifications", "dnd", "control_center", "cheatsheet", "hotkeys"]
+      collapse_options:
+        enabled: false
+
+  notifications:
+    type: "yasb.notifications.NotificationsWidget"
+    options:
+      label: "<span>{icon}</span>"
+      label_alt: "<span>{icon}</span>{count}"
+      hide_empty: false
+      tooltip: true
+      icons:
+        new: "\udb80\udc9e"
+        default: "\udb80\udc9a"
+      callbacks:
+        on_left: "toggle_notification"
+        on_middle: "toggle_label"
+        on_right: "clear_notifications"
+
+  # Notifications on/off.
+  dnd:
+    type: "yasb.dnd.DndWidget"
+    options:
+      label: "<span>{icon}</span>"
+      label_alt: "<span>{icon}</span>{status}"
+      tooltip: true
+      icons:
+        disabled: "\udb81\udd94"
+        priority: "\udb83\udf65"
+        alarms: "\udb83\udf65"
+      callbacks:
+        on_left: "toggle_status"
+        on_right: "cycle_status"
+
+  # Sliders, quick toggles, power plan / power saver, and shut down / restart / lock.
+  control_center:
+    type: "yasb.control_center.ControlCenterWidget"
+    options:
+      label: "<span>\uf1de</span>"
+      tooltip: true
+      sections_order: ["system_controls", "quick_actions", "sliders", "power", "media"]
+      popup:
+        alignment: "right"
+        direction: "down"
+        border_color: "System"
+        round_corners: true
+        round_corners_type: "normal"
+        offset_top: 8
+      sections:
+        system_controls:
+          profile_image_size: 28
+          power_icon: "\uE7E8"
+          lock_icon: "\uE72E"
+          settings_icon: "\uE713"
+        quick_actions:
+          show: true
+          columns: 3
+          label_position: "default"
+          actions:
+            - id: "toggle_dnd"
+              label: "Do Not Disturb"
+              icon: "\uf285"
+            - id: "toggle_mute"
+              label: "Mute"
+              icon: "\ue74f"
+            - id: "toggle_mic_mute"
+              label: "Mic Mute"
+              icon: "\uF12E"
+            - id: "screenshot"
+              label: "Screenshot"
+              icon: "\ue91b"
+            - id: "touch_keyboard"
+              label: "Keyboard"
+              icon: "\uE765"
+            - id: "toggle_theme"
+              label: "Dark Mode"
+              icon: "\uE708"
+        sliders:
+          show: true
+          brightness:
+            show_slider: true
+            icon: "\uE706"
+          volume:
+            show_slider: true
+            icon: "\uE767"
+            show_source_selector: true
+            source_selector_icon: "\uE972"
+          microphone:
+            show_slider: true
+            icon: "\uE720"
+            show_source_selector: true
+            source_selector_icon: "\uE972"
+        power:
+          show: true
+          power_plan_title: "Power Plan"
+          power_mode_title: "Power Mode"
+          button_menu_icon: "\ue76c"
+        media:
+          show: true
+          thumbnail_size: 36
+          thumbnail_radius: 6
+          icons:
+            prev_track: "\ue622"
+            next_track: "\ue623"
+            play: "\uf5b0"
+            pause: "\ue62e"
+      callbacks:
+        on_left: "toggle_menu"
+
+  # The hotkey hub (every app's keys, search, keyboard view) in a floating Obsidian window on the
+  # current workspace; click again (or Win+/) to close it. Obsidian itself stays minimized in the tray.
+  cheatsheet:
+    type: "yasb.custom.CustomWidget"
+    options:
+      label: "<span>\udb81\uddda</span>"
+      label_alt: "<span>\udb81\uddda</span>"
+      class_name: "cheatsheet-button"
+      tooltip: true
+      tooltip_label: "Hotkey hub: every app's shortcuts, search, keyboard view  ·  Win+/"
+      exec_options:
+        run_once: true
+      callbacks:
+        on_left: "exec %LOCALAPPDATA%\\Programs\\deskhud-suite\\bin\\deskhud.exe cheatsheet"
+        on_middle: "do_nothing"
+        on_right: "do_nothing"
+
+  # The desktop keys at a glance, read live from whkdrc (deskhud keeps whkd's file format, so this
+  # widget still works). Also on Win+Shift+/ (Win+?). The book button has every app's keys.
+  hotkeys:
+    type: "yasb.whkd.WhkdWidget"
+    options:
+      label: "<span>\uf11c</span>"
+      special_keys:
+        - { key: "win", key_replace: "Win" }
+        - { key: "shift", key_replace: "Shift" }
+        - { key: "alt", key_replace: "Alt" }
+        - { key: "ctrl", key_replace: "Ctrl" }
+        - { key: "left", key_replace: "\u2190" }
+        - { key: "right", key_replace: "\u2192" }
+        - { key: "up", key_replace: "\u2191" }
+        - { key: "down", key_replace: "\u2193" }
+        - { key: "return", key_replace: "Enter" }
+        - { key: "oem_4", key_replace: "[" }
+        - { key: "oem_6", key_replace: "]" }
+        - { key: "oem_2", key_replace: "/" }
+      keybindings:
+        - keys: "win+shift+slash"
+          action: "open_popup"

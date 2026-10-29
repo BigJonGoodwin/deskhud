@@ -1,0 +1,94 @@
+.shell cmd
+
+# deskhud-suite hotkeys (installed to ~/.config/whkdrc).
+#
+# Win is the window-manager key, so apps keep all their Alt and Ctrl shortcuts. Win combos not listed
+# here still do what Windows does (Win+V, Win+Shift+S, Win+E...). Win+L cannot be taken over, so arrows
+# replace the usual h/j/k/l.
+#
+# Lines starting with ## become sections in the hotkey list (bar keyboard icon, or Win+Shift+/).
+# The keys are run by deskhud's keyboard hook (setting `keyboard.hook` in ~/.config/deskhud/settings.json),
+# not by whkd: it reads this file in whkd's format and picks up edits when you save. With the hook off,
+# deskhud ignores this file and GlazeWM's own `keybindings` apply instead.
+#
+# A line is `keys : command`. `deskhud <verb>` runs one of deskhud's commands, `glazewm command <cmd>`
+# sends a GlazeWM command (https://github.com/glzr-io/glazewm#commands), anything else runs in cmd.
+
+## Focus
+win + left              : glazewm command focus --direction left
+win + right             : glazewm command focus --direction right
+win + up                : glazewm command focus --direction up
+win + down              : glazewm command focus --direction down
+
+## Move
+win + shift + left      : glazewm command move --direction left
+win + shift + right     : glazewm command move --direction right
+win + shift + up        : glazewm command move --direction up
+win + shift + down      : glazewm command move --direction down
+
+## Stacks
+# Win+T stacks the windows next to this one into tabs, or lays a stack out again (one button).
+# Win+Alt+arrow stacks onto the window that way; on a stack, it pulls that window in.
+win + t                 : glazewm command toggle-tabbed
+win + alt + left        : deskhud stack left
+win + alt + right       : deskhud stack right
+win + alt + up          : deskhud stack up
+win + alt + down        : deskhud stack down
+win + oem_4             : glazewm command focus --prev-tab
+win + oem_6             : glazewm command focus --next-tab
+win + alt + back        : deskhud unstack
+
+## Size and layout
+win + ctrl + right      : glazewm command resize --width +3%
+win + ctrl + left       : glazewm command resize --width -3%
+win + ctrl + up         : glazewm command resize --height +3%
+win + ctrl + down       : glazewm command resize --height -3%
+win + z                 : deskhud snap
+win + shift + z         : glazewm command toggle-tiling-direction
+
+## Windows
+win + q                 : glazewm command close
+win + m                 : deskhud minimize
+win + shift + m         : deskhud restore
+win + ctrl + m          : deskhud tray next
+win + f                 : glazewm command toggle-floating
+win + shift + f         : glazewm command toggle-fullscreen
+
+## Workspaces
+# Numbers follow your screen: a number in use stays on its screen, and Win+N goes there; a free number
+# opens on the screen you're on. Win+Shift+N takes the window along by the same rule. The numbers are
+# the ones on the bar's left islands.
+win + 1                 : deskhud workspace 1
+win + 2                 : deskhud workspace 2
+win + 3                 : deskhud workspace 3
+win + 4                 : deskhud workspace 4
+win + 5                 : deskhud workspace 5
+win + 6                 : deskhud workspace 6
+win + 7                 : deskhud workspace 7
+win + 8                 : deskhud workspace 8
+win + 9                 : deskhud workspace 9
+win + shift + 1         : deskhud move-to-workspace 1
+win + shift + 2         : deskhud move-to-workspace 2
+win + shift + 3         : deskhud move-to-workspace 3
+win + shift + 4         : deskhud move-to-workspace 4
+win + shift + 5         : deskhud move-to-workspace 5
+win + shift + 6         : deskhud move-to-workspace 6
+win + shift + 7         : deskhud move-to-workspace 7
+win + shift + 8         : deskhud move-to-workspace 8
+win + shift + 9         : deskhud move-to-workspace 9
+
+## Apps
+# Focus the app if it is open anywhere, otherwise start it. Which app each name means is set
+# under "apps" in ~/.config/deskhud/settings.json.
+win + return            : deskhud open terminal
+win + b                 : deskhud open browser
+win + j                 : deskhud open ide
+win + o                 : deskhud open notes
+
+## Desktop
+win + oem_2             : deskhud cheatsheet
+win + shift + w         : deskhud wallpaper next
+win + shift + p         : glazewm command wm-toggle-pause
+win + shift + r         : glazewm command wm-redraw
+win + shift + o         : glazewm command wm-reload-config
+win + ctrl + shift + o  : deskhud reload

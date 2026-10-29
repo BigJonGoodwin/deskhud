@@ -1,0 +1,918 @@
+/*
+  Black adaptive bar fused to the screen bezel, with bubbles inside its islands and light rising
+  from behind its lower edge.
+
+  Colours: deskhud_colors.css is rewritten by deskhud from the current wallpaper (accent, surfaces,
+  stack hues, HUD tints, the CPU/RAM pair, the bar glow, the next wallpaper's colour), so never edit
+  it; use its variables here. Most icons keep fixed colours by function so they are easy to find.
+  Any var(--name) also has var(--name-rgb) for rgba(var(--name-rgb), 0.5).
+
+  Geometry: the .yasb-bar.adaptive values below and dimensions.height in config.yaml must match
+  "bar" in ~/.config/deskhud/settings.json, which draws the left island in the same shape.
+
+  Full guide to the setup: ~/.config/deskhud/README.md
+*/
+@import "deskhud_colors.css";
+
+:root {
+    --bar: #000000;
+    --edge: rgba(255, 255, 255, 0.045);
+    --edge-light: rgba(255, 255, 255, 0.11);
+    --popup: rgba(10, 10, 12, 0.94);
+    --popup-line: rgba(255, 255, 255, 0.07);
+    --hover: rgba(255, 255, 255, 0.07);
+
+    --text-font: "Segoe UI Variable", "Segoe UI";
+    --icon-font: "JetBrainsMono NFP", "Segoe Fluent Icons";
+    --fluent-font: "Segoe Fluent Icons", "Segoe MDL2 Assets";
+
+    /* Icon colours by function */
+    --fn-connect: #8ec5ff;
+    --fn-power: #8fe3a5;
+    --fn-audio: #c9a7ff;
+    --fn-focus: #ffcf7a;
+    --fn-alert: #ff9b8a;
+    --fn-system: #b9c2da;
+    /* The same, for rgba(): the hover glows below light each bubble in its function's colour. */
+    --fn-connect-rgb: 142, 197, 255;
+    --fn-power-rgb: 143, 227, 165;
+    --fn-audio-rgb: 201, 167, 255;
+    --fn-focus-rgb: 255, 207, 122;
+    --fn-system-rgb: 185, 194, 218;
+
+    /* Load warnings stay fixed so they always read as warnings, whatever the wallpaper. */
+    --load-high: #ffb454;
+    --load-critical: #ff6b6b;
+}
+
+* {
+    font-family: var(--text-font);
+    font-size: var(--text-size);
+    font-weight: 600;
+    color: var(--ink);
+}
+
+/* ---------- bar ---------- */
+
+/* Light rising from behind the bar's lower edge, with no edge line. The frame is the bar plus the 10px
+   edge curves, so 0.80 (40 / 50) is the bar's bottom. deskhud draws its island with the same stops (Strip.BarFill);
+   --bar-glow is the accent mixed into black, so the bar stays opaque. */
+.yasb-bar {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 var(--bar), stop:0.30 var(--bar), stop:0.80 var(--bar-glow), stop:1 var(--bar-glow));
+    border: none;
+}
+
+.yasb-bar.adaptive {
+    -qproperty-railheight: 3;
+    -qproperty-islandradius: 12;
+    -qproperty-grouppadding: 8;
+    -qproperty-islands: true;
+    -qproperty-edgeradius: 10;
+}
+
+/* Centre widgets on the island below the rail, where deskhud centres its bubbles too. */
+.container-left,
+.container-center,
+.container-right {
+    padding-top: 3px;
+}
+
+/* ---------- bubbles ---------- */
+
+.widget {
+    padding: 0;
+    margin: 0 2px;
+}
+
+.widget .widget-container,
+.grouper .container {
+    background-color: var(--surface);
+    border: 1px solid var(--edge);
+    border-top-color: var(--edge-light);
+    border-radius: 12px;
+    min-height: var(--bubble-h);
+    max-height: var(--bubble-h);
+    padding: 0 9px;
+    transition: background-color 150ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* Hover lights a bubble from below, like deskhud's island bubbles: a gradient into the lower edge and a
+   lit bottom rim (YASB has no glow effect; gradients cost nothing). Function-coloured versions below. */
+.widget .widget-container:hover,
+.grouper .container:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 var(--surface-high), stop:0.5 var(--surface-high), stop:1 rgba(var(--accent-rgb), 0.26));
+    border-bottom-color: rgba(var(--accent-rgb), 0.6);
+}
+
+.widget .widget-container:pressed {
+    background-color: rgba(var(--surface-high-rgb), 0.7);
+}
+
+.widget .icon {
+    font-family: var(--icon-font);
+    font-size: var(--icon-size);
+    font-weight: 400;
+    padding: 0;
+}
+
+/* Room after a leading icon; text-only widgets take it back below. */
+.widget .label {
+    padding: 0 0 1px 5px;
+}
+
+/* A group is one bubble; the widgets inside sit flush on it. */
+.grouper {
+    margin: 0 2px;
+}
+
+.grouper .container {
+    padding: 0 3px;
+}
+
+.grouper .widget {
+    margin: 0;
+}
+
+.grouper .widget .widget-container {
+    background-color: transparent;
+    border: none;
+    border-radius: 9px;
+    min-height: var(--inner-h);
+    max-height: var(--inner-h);
+    padding: 0 6px;
+}
+
+.grouper .widget .widget-container:hover {
+    background-color: var(--hover);
+}
+
+.grouper .grouper-button {
+    font-family: var(--icon-font);
+    font-size: 10px;
+    color: var(--ink-soft);
+    background: transparent;
+    border: none;
+    padding: 0 4px 0 2px;
+}
+
+.grouper .grouper-button:hover {
+    color: var(--ink);
+}
+
+/* ---------- islands: media (centre), diagnostics and controls (right) ---------- */
+
+/* Invisible spacer that splits the right group into two islands (style_adaptive_exclude).
+   It must be wider than twice the group padding, or the islands merge back into one. */
+.island-gap .widget-container,
+.island-gap .widget-container:hover {
+    background-color: transparent;
+    border: none;
+    min-width: 34px;
+    max-width: 34px;
+    padding: 0;
+}
+
+/* The centre island, while something plays: it glows in the album art's colour (--media, which deskhud
+   samples from the art behind the title; the audio violet until something has played). */
+.media-widget .widget-container {
+    padding: 0 4px 0 10px;
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 var(--surface), stop:0.5 var(--surface), stop:1 rgba(var(--media-rgb), 0.32));
+    border-bottom: 1px solid rgba(var(--media-rgb), 0.8);
+}
+
+.media-widget .widget-container:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 var(--surface-high), stop:0.45 var(--surface-high), stop:1 rgba(var(--media-rgb), 0.45));
+}
+
+.media-widget .label {
+    margin: 0 6px 0 0;
+    padding-left: 0;
+    color: var(--ink);
+}
+
+.media-widget .btn {
+    font-family: var(--icon-font);
+    font-size: var(--icon-size);
+    font-weight: 400;
+    color: var(--ink-soft);
+    background: transparent;
+    border: none;
+    border-radius: 9px;
+    padding: 0 3px;
+    margin: 0;
+}
+
+.media-widget .btn:hover {
+    color: var(--ink);
+}
+
+.media-widget .btn.play {
+    color: var(--media);
+}
+
+.media-widget .btn.disabled,
+.media-widget .btn.disabled:hover {
+    color: rgba(var(--ink-soft-rgb), 0.35);
+}
+
+.audio-visualizer-widget .widget-container {
+    padding: 0 8px;
+}
+
+.audio-visualizer-widget .audio-visualizer-canvas {
+    -qproperty-fillbrush: linear-gradient(to top, var(--media), var(--accent));
+}
+
+/* ---------- status island ---------- */
+
+.pomodoro-widget .icon {
+    color: var(--fn-focus);
+    font-size: var(--icon-small);
+}
+
+.pomodoro-widget .label {
+    color: var(--ink-soft);
+}
+
+.pomodoro-widget .label.work {
+    color: var(--ink);
+}
+
+.pomodoro-widget .label.break {
+    color: var(--fn-power);
+}
+
+/* YASB 2.0.7 labels an idle timer "work", the same as a running one, so idle cannot be hidden here. */
+.pomodoro-widget .label.paused {
+    color: var(--ink-soft);
+}
+
+/* deskhud colours the weather glyph and the traffic arrows inline. */
+.ticker .label {
+    font-family: var(--icon-font);
+    font-weight: 500;
+    padding-left: 0;
+}
+
+.cpu-widget .icon,
+.memory-widget .icon,
+.gpu-widget .icon {
+    color: var(--fn-system);
+    font-size: var(--icon-small);
+}
+
+/* A soft matching pair from one wallpaper hue; the pair changes colour family with every wallpaper. */
+.cpu-widget .icon { color: var(--cpu); }
+.memory-widget .icon { color: var(--ram); }
+
+.cpu-widget .label {
+    font-family: var(--icon-font);
+    color: var(--ink-soft);
+}
+
+.memory-widget .label,
+.gpu-widget .label {
+    color: var(--ink-soft);
+}
+
+.cpu-widget .label.status-high,
+.memory-widget .label.status-high {
+    color: var(--load-high);
+}
+
+.cpu-widget .label.status-critical,
+.memory-widget .label.status-critical {
+    color: var(--load-critical);
+}
+
+.wallpaper-button .icon {
+    color: var(--next-wall);
+    font-size: var(--icon-size);
+}
+
+.systray .unpinned-visibility-btn,
+.systray .label {
+    font-family: var(--icon-font);
+    font-size: 11px;
+    color: var(--ink-soft);
+    background: transparent;
+    border: none;
+}
+
+.systray .button {
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    padding: 2px;
+}
+
+.systray .button:hover {
+    background-color: var(--hover);
+}
+
+/* Each status element sits on its own shade of the wallpaper. */
+.hud .container {
+    padding: 0 3px;
+}
+
+.hud .widget .widget-container {
+    margin: 0 1px;
+}
+
+.hud .wifi-widget .widget-container { background-color: var(--hud-wifi); }
+.hud .bluetooth-widget .widget-container { background-color: var(--hud-bluetooth); }
+.hud .volume-widget .widget-container { background-color: var(--hud-volume); }
+.hud .battery-widget .widget-container { background-color: var(--hud-battery); }
+
+.hud .wifi-widget .widget-container:hover,
+.hud .bluetooth-widget .widget-container:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 var(--surface-high), stop:0.45 var(--surface-high), stop:1 rgba(var(--fn-connect-rgb), 0.38));
+}
+
+.hud .volume-widget .widget-container:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 var(--surface-high), stop:0.45 var(--surface-high), stop:1 rgba(var(--fn-audio-rgb), 0.38));
+}
+
+.hud .battery-widget .widget-container:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 var(--surface-high), stop:0.45 var(--surface-high), stop:1 rgba(var(--fn-power-rgb), 0.38));
+}
+
+.pomodoro-widget .widget-container:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 var(--surface-high), stop:0.5 var(--surface-high), stop:1 rgba(var(--fn-focus-rgb), 0.3));
+    border-bottom-color: rgba(var(--fn-focus-rgb), 0.6);
+}
+
+.grouper.stats .container:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 var(--surface-high), stop:0.5 var(--surface-high), stop:1 rgba(var(--cpu-rgb), 0.28));
+    border-bottom-color: rgba(var(--cpu-rgb), 0.6);
+}
+
+.wifi-widget .icon,
+.bluetooth-widget .icon {
+    color: var(--fn-connect);
+}
+
+.volume-widget .icon {
+    color: var(--fn-audio);
+}
+
+.battery-widget .icon {
+    color: var(--fn-power);
+    font-size: var(--icon-small);
+}
+
+.battery-widget .label {
+    color: var(--ink-soft);
+}
+
+.clock-widget .widget-container {
+    padding: 0 11px;
+}
+
+/* The clock carries a softer version of the system bubble's underglow, so the light reads across the
+   right end of the bar. */
+.grouper.clock .container {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 var(--surface), stop:0.6 var(--surface), stop:1 rgba(var(--accent-rgb), 0.22));
+    border-bottom: 1px solid rgba(var(--accent-rgb), 0.5);
+}
+
+.grouper.clock .container:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 var(--surface-high), stop:0.55 var(--surface-high), stop:1 rgba(var(--accent-rgb), 0.36));
+}
+
+.clock-widget .label {
+    color: var(--accent);
+    padding-left: 0;
+}
+
+/* Date and time share one bubble; the date sits back in a soft tint so the time reads first. */
+.grouper.clock .widget .widget-container {
+    padding: 0 4px;
+}
+
+.clock-widget.date .label {
+    color: var(--ink-soft);
+}
+
+.notification-widget .icon {
+    color: var(--ink-soft);
+}
+
+.notification-widget .icon.new-notification {
+    color: var(--fn-alert);
+}
+
+.dnd-widget .icon {
+    color: var(--ink-soft);
+}
+
+.dnd-widget .icon.priority,
+.dnd-widget .icon.alarms {
+    color: var(--accent);
+}
+
+.control-center-widget .icon,
+.cheatsheet-button .icon,
+.whkd-widget .icon {
+    color: var(--fn-system);
+    font-size: var(--icon-small);
+}
+
+/* The two hotkey buttons get colours of their own: the hub in the focus amber, the desktop key list
+   in the accent, each lit from below on hover. */
+.cheatsheet-button .icon { color: var(--fn-focus); }
+.whkd-widget .icon { color: var(--accent); }
+
+.grouper.system .cheatsheet-button .widget-container:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 var(--hover), stop:0.4 var(--hover), stop:1 rgba(var(--fn-focus-rgb), 0.4));
+}
+
+.grouper.system .whkd-widget .widget-container:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 var(--hover), stop:0.4 var(--hover), stop:1 rgba(var(--accent-rgb), 0.4));
+}
+
+/* Light from the wallpaper's accent peeking out under the system bubble. YASB has no glow effect,
+   so it is a gradient into the bottom edge plus a lit bottom border; it costs nothing to draw. */
+.grouper.system .container {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 var(--surface), stop:0.55 var(--surface), stop:1 rgba(var(--accent-rgb), 0.45));
+    border-bottom: 1px solid rgba(var(--accent-rgb), 0.85);
+}
+
+.grouper.system .container:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 var(--surface-high), stop:0.55 var(--surface-high), stop:1 rgba(var(--accent-rgb), 0.52));
+}
+
+/* ---------- popups ---------- */
+
+.tooltip {
+    background-color: var(--popup);
+    border: 1px solid rgba(var(--accent-rgb), 0.28);
+    border-radius: 6px;
+    color: var(--ink);
+    padding: 5px 10px;
+    font-size: 13px;
+    margin-top: 6px;
+}
+
+.context-menu,
+.context-menu .menu-checkbox {
+    background-color: var(--popup);
+    border: 1px solid var(--popup-line);
+    border-radius: 8px;
+    padding: 4px 0;
+    color: var(--ink);
+}
+
+.context-menu::item,
+.context-menu .menu-checkbox {
+    background-color: transparent;
+    padding: 6px 12px;
+    margin: 2px 6px;
+    border-radius: 6px;
+    min-width: 100px;
+}
+
+/* Lit in the accent, like deskhud's right-click menus. */
+.context-menu::item:selected,
+.context-menu .menu-checkbox:hover {
+    background-color: rgba(var(--accent-rgb), 0.22);
+}
+
+.context-menu::separator {
+    height: 1px;
+    background-color: var(--popup-line);
+    margin: 4px 8px;
+}
+
+.context-menu::item:disabled {
+    color: var(--ink-soft);
+}
+
+.clock-popup.calendar {
+    background-color: var(--popup);
+    min-width: 440px;
+}
+
+.clock-popup.calendar .calendar-table,
+.clock-popup.calendar .calendar-table::item {
+    background-color: transparent;
+    color: var(--ink-soft);
+    margin: 0;
+    padding: 0;
+    border: none;
+    outline: none;
+}
+
+.clock-popup.calendar .calendar-table::item:selected {
+    color: #000000;
+    background-color: var(--accent);
+    border-radius: 12px;
+}
+
+.clock-popup.calendar .day-label,
+.clock-popup.calendar .month-label,
+.clock-popup.calendar .year-label,
+.clock-popup.calendar .date-label {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--ink);
+    min-width: 180px;
+    max-width: 180px;
+}
+
+.clock-popup.calendar .day-label {
+    margin-top: 20px;
+}
+
+.clock-popup.calendar .month-label,
+.clock-popup.calendar .year-label {
+    font-weight: 400;
+    color: var(--ink-soft);
+}
+
+.clock-popup.calendar .date-label {
+    font-size: 80px;
+    font-weight: 800;
+    margin-top: -16px;
+}
+
+.clock-popup.calendar .week-label {
+    color: var(--ink-soft);
+    font-size: 11px;
+}
+
+.audio-menu,
+.wifi-menu,
+.bluetooth-menu,
+.media-menu,
+.systray-popup,
+.whkd-popup,
+.control-center-menu,
+.pomodoro-menu {
+    background-color: var(--popup);
+}
+
+/* Pomodoro panel: progress ring, session count, start / reset / skip. */
+.pomodoro-menu {
+    padding: 12px;
+}
+
+.pomodoro-menu .header,
+.pomodoro-menu .status {
+    font-size: 13px;
+    color: var(--ink);
+}
+
+.pomodoro-menu .session {
+    font-size: 12px;
+    color: var(--ink-soft);
+}
+
+.pomodoro-menu .button {
+    background-color: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--popup-line);
+    border-radius: 6px;
+    padding: 5px 12px;
+    margin: 4px 2px 0 2px;
+}
+
+.pomodoro-menu .button:hover {
+    background-color: var(--surface-high);
+}
+
+.pomodoro-menu .button.start,
+.pomodoro-menu .button.pause {
+    color: #000000;
+    background-color: var(--accent);
+    border: 1px solid var(--accent);
+}
+
+.audio-menu {
+    min-width: 300px;
+}
+
+.audio-menu .audio-container .device {
+    background-color: transparent;
+    border: none;
+    padding: 6px 8px 6px 4px;
+    margin: 2px 0;
+    border-radius: 6px;
+}
+
+.audio-menu .audio-container .device.selected {
+    background-color: var(--surface-high);
+}
+
+.audio-menu .audio-container .device:hover {
+    background-color: var(--hover);
+}
+
+.audio-menu .apps-container {
+    padding: 8px;
+    margin-top: 16px;
+    border-radius: 8px;
+    background-color: rgba(255, 255, 255, 0.04);
+}
+
+.systray-popup {
+    padding: 4px;
+}
+
+.systray-popup .button {
+    padding: 10px;
+    margin: 0;
+    border: 0;
+    border-radius: 6px;
+}
+
+.systray-popup .button:hover {
+    background-color: var(--hover);
+}
+
+.media-menu {
+    min-width: 400px;
+    max-width: 400px;
+}
+
+.media-menu .title,
+.media-menu .artist,
+.media-menu .source {
+    font-size: 14px;
+    margin-left: 10px;
+}
+
+.media-menu .artist {
+    font-size: 13px;
+    color: var(--ink-soft);
+    margin-bottom: 8px;
+}
+
+.media-menu .source {
+    font-size: 11px;
+    font-weight: 600;
+    color: #000000;
+    background-color: var(--accent);
+    border-radius: 4px;
+    padding: 2px 6px;
+}
+
+.media-menu .btn {
+    font-family: var(--fluent-font);
+    font-size: 14px;
+    font-weight: 400;
+    margin: 10px 2px 0 2px;
+    min-width: 40px;
+    max-width: 40px;
+    min-height: 40px;
+    max-height: 40px;
+    border-radius: 20px;
+}
+
+.media-menu .btn:hover,
+.media-menu .btn.play {
+    background-color: var(--hover);
+}
+
+.media-menu .playback-time {
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin-top: 20px;
+    min-width: 100px;
+}
+
+.media-menu .progress-slider::groove {
+    height: 3px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.media-menu .progress-slider::sub-page {
+    background: var(--accent);
+    border-radius: 2px;
+    height: 3px;
+}
+
+/* Control centre: power plan and power saver, toggles, sliders, power buttons. */
+.control-center-menu {
+    min-width: 360px;
+}
+
+.control-center-menu .section {
+    background: transparent;
+    margin: 0;
+    padding: 16px 12px;
+    border-bottom: 1px solid var(--popup-line);
+}
+
+.control-center-menu .section.system-controls {
+    padding: 12px 16px 0 16px;
+    border-bottom: none;
+}
+
+.control-center-menu .section.power,
+.control-center-menu .section.media {
+    border-bottom: none;
+}
+
+.control-center-menu .section.system-controls .button,
+.control-center-menu .section.quick-actions .button .icon,
+.control-center-menu .section.sliders .slider .icon,
+.control-center-menu .section.sliders .slider .source-selector,
+.control-center-menu .section.power .plan-name .icon,
+.control-center-menu .section.power .mode-name .icon,
+.control-center-menu .section.media .button {
+    font-family: var(--fluent-font);
+    font-weight: 400;
+}
+
+.control-center-menu .section.system-controls .button {
+    background-color: rgba(255, 255, 255, 0.06);
+    border-radius: 16px;
+    min-height: 32px;
+    max-height: 32px;
+    min-width: 32px;
+    max-width: 32px;
+    font-size: 14px;
+}
+
+.control-center-menu .section.system-controls .button:hover {
+    background-color: var(--surface-high);
+}
+
+.control-center-menu .section.quick-actions .button {
+    margin: 0 4px;
+}
+
+.control-center-menu .section.quick-actions .button .icon {
+    font-size: 16px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    min-height: 48px;
+    border-radius: 8px;
+}
+
+.control-center-menu .section.quick-actions .button .icon:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+.control-center-menu .section.quick-actions .button.active .icon {
+    background-color: var(--accent);
+    border: 1px solid var(--accent);
+    color: #000000;
+}
+
+.control-center-menu .section.quick-actions .button .title {
+    font-size: 11px;
+    margin: 4px 0 8px 0;
+    color: var(--ink-soft);
+}
+
+.control-center-menu .section.sliders .slider {
+    background: transparent;
+    border: none;
+    min-height: 34px;
+    margin: 0 4px;
+}
+
+.control-center-menu .section.sliders .slider .icon {
+    font-size: 16px;
+    min-width: 36px;
+}
+
+.control-center-menu .section.sliders .slider .value {
+    min-width: 36px;
+    font-size: 12px;
+}
+
+.control-center-menu .section.sliders .slider .source-selector {
+    font-size: 12px;
+    color: var(--ink-soft);
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    background-color: transparent;
+    margin-left: 4px;
+}
+
+.control-center-menu .section.sliders .slider .source-selector:hover {
+    background-color: var(--hover);
+}
+
+.control-center-menu .section.power .plan-name,
+.control-center-menu .section.power .mode-name {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 8px;
+    min-height: 36px;
+    margin: 0 4px;
+    padding: 6px 10px;
+}
+
+.control-center-menu .section.power .plan-name:hover,
+.control-center-menu .section.power .mode-name:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.control-center-menu .section.power .plan-name .title,
+.control-center-menu .section.power .mode-name .title {
+    font-size: 11px;
+    color: var(--ink-soft);
+}
+
+.control-center-menu .section.power .plan-name .subtext,
+.control-center-menu .section.power .mode-name .subtext {
+    font-size: 13px;
+}
+
+.control-center-menu .section.media {
+    background-color: rgba(0, 0, 0, 0.25);
+    padding: 12px;
+    border-top: 1px solid var(--popup-line);
+}
+
+.control-center-menu .section.media .subtext {
+    color: var(--ink-soft);
+}
+
+.control-center-menu .section.media .button {
+    font-size: 14px;
+    background-color: transparent;
+    min-width: 32px;
+    min-height: 32px;
+    max-width: 32px;
+    max-height: 32px;
+    border-radius: 6px;
+    margin: 0 0 0 4px;
+}
+
+.control-center-menu .section.media .button:hover {
+    background-color: var(--hover);
+}
+
+/* The hotkey list (whkd widget, Win+?). Sections come from ## lines in whkdrc. */
+.whkd-popup .keybind-buttons-container {
+    min-width: 260px;
+}
+
+.whkd-popup .keybind-button {
+    background-color: var(--surface-high);
+    color: var(--ink);
+    padding: 3px 8px 4px 8px;
+    font-size: 13px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 2px solid rgba(255, 255, 255, 0.08);
+    border-radius: 5px;
+}
+
+.whkd-popup .keybind-button.special {
+    color: var(--accent);
+}
+
+.whkd-popup .plus-separator {
+    padding: 0;
+    border: none;
+    font-size: 13px;
+    color: var(--ink-soft);
+    background-color: transparent;
+}
+
+.whkd-popup .keybind-row:hover {
+    background-color: var(--hover);
+    border-radius: 8px;
+}
+
+.whkd-popup .keybind-command {
+    font-size: 13px;
+    color: var(--ink-soft);
+}
+
+.whkd-popup .keybind-header {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink);
+    padding: 8px 0;
+    margin-top: 16px;
+    background-color: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--popup-line);
+    border-radius: 8px;
+}
+
+.whkd-popup .filter-input {
+    padding: 0 8px 2px 8px;
+    font-size: 13px;
+    border: 1px solid var(--popup-line);
+    border-radius: 6px;
+    background-color: rgba(255, 255, 255, 0.05);
+    min-height: 32px;
+}
+
+.whkd-popup .filter-input:focus {
+    border: 1px solid var(--accent);
+}
+
+.whkd-popup .edit-config-button {
+    background-color: var(--accent);
+    color: #000000;
+    padding: 4px 10px 5px 10px;
+    border-radius: 6px;
+}

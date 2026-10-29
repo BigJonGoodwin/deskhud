@@ -1,0 +1,51 @@
+/* Default palette shipped with the deskhud theme. deskhud rewrites this file from the current wallpaper
+   and posture as soon as it runs, so change colours in deskhud (Palette.cs) or override them in styles.css. */
+:root {
+    --bubble-h: 26px;
+    --inner-h: 22px;
+    --icon-size: 17px;
+    --icon-small: 15px;
+    --text-size: 14px;
+    --accent: #78c1ed;
+    --accent-rgb: 120, 193, 237;
+    --negative: #eb9866;
+    --negative-rgb: 235, 152, 102;
+    --surface: #121719;
+    --surface-rgb: 18, 23, 25;
+    --surface-high: #1c2226;
+    --surface-high-rgb: 28, 34, 38;
+    --ink: #ebeef0;
+    --ink-rgb: 235, 238, 240;
+    --ink-soft: #9aa5ac;
+    --ink-soft-rgb: 154, 165, 172;
+    --next-wall: #78c1ed;
+    --next-wall-rgb: 120, 193, 237;
+    --cpu: #9f97d8;
+    --cpu-rgb: 159, 151, 216;
+    --ram: #bd97d8;
+    --ram-rgb: 189, 151, 216;
+    --bar-glow: #263d4b;
+    --bar-glow-rgb: 38, 61, 75;
+    --media: #c9a7ff;
+    --media-rgb: 201, 167, 255;
+    --stack-1: #78c1ed;
+    --stack-1-rgb: 120, 193, 237;
+    --stack-2: #897edd;
+    --stack-2-rgb: 137, 126, 221;
+    --stack-3: #ddba7e;
+    --stack-3-rgb: 221, 186, 126;
+    --stack-4: #d27edd;
+    --stack-4-rgb: 210, 126, 221;
+    --stack-5: #dd7e8d;
+    --stack-5-rgb: 221, 126, 141;
+    --stack-6: #7eddbb;
+    --stack-6-rgb: 126, 221, 187;
+    --hud-wifi: #181627;
+    --hud-wifi-rgb: 24, 22, 39;
+    --hud-bluetooth: #272116;
+    --hud-bluetooth-rgb: 39, 33, 22;
+    --hud-volume: #251627;
+    --hud-volume-rgb: 37, 22, 39;
+    --hud-battery: #271619;
+    --hud-battery-rgb: 39, 22, 25;
+}

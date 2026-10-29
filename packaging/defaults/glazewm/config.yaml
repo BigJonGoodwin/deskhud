@@ -1,0 +1,136 @@
+# GlazeWM config for deskhud-suite (installed to ~/.glzr/glazewm/config.yaml).
+#
+# GlazeWM tiles the windows; YASB draws the bar; deskhud draws the bar's left island, runs the hotkeys
+# (~/.config/whkdrc), colours everything from the wallpaper and draws the tab strip over stacked windows.
+# GlazeWM's own keybindings stay empty while deskhud's keyboard hook is on (`keyboard.hook` in
+# ~/.config/deskhud/settings.json), so apps keep every Alt and Ctrl shortcut. Installing with
+# -NoKeyboardHook fills them with the Alt scheme from keybindings-alt.yaml instead.
+#
+# Reload after editing: Win+Shift+O, or `glazewm command wm-reload-config`.
+# Every option: https://github.com/glzr-io/glazewm (resources/assets/sample-config.yaml).
+
+general:
+  # deskhud and YASB start from their own logon tasks (Task Scheduler \deskhud-suite\), not from here,
+  # so restarting GlazeWM leaves the bar alone.
+  startup_commands: []
+  shutdown_commands: []
+  config_reload_commands: []
+
+  focus_follows_cursor: false
+  toggle_workspace_on_refocus: false
+
+  # The pointer stays where you left it when focus moves.
+  cursor_jump:
+    enabled: false
+    trigger: 'monitor_focus'
+
+  hide_method: 'cloak'
+  show_all_in_taskbar: false
+
+gaps:
+  scale_with_dpi: true
+  # Windows nearly touch: one pixel of padding each, like the old komorebi setup. YASB reserves the
+  # top 40 px as an app bar, and GlazeWM tiles inside the rest of the screen.
+  inner_gap: '2px'
+  outer_gap:
+    top: '0px'
+    right: '0px'
+    bottom: '0px'
+    left: '0px'
+
+window_effects:
+  focused_window:
+    border:
+      enabled: true
+      color: '#8aa4ff'
+    hide_title_bar:
+      enabled: false
+    corner_style:
+      enabled: true
+      style: 'rounded'
+    transparency:
+      enabled: false
+      opacity: '95%'
+  other_windows:
+    border:
+      enabled: true
+      color: '#2a2c33'
+    hide_title_bar:
+      enabled: false
+    corner_style:
+      enabled: true
+      style: 'rounded'
+    transparency:
+      enabled: false
+      opacity: '0%'
+
+window_behavior:
+  initial_state: 'tiling'
+  state_defaults:
+    floating:
+      # Floating windows stay where they were put (the cheatsheet remembers its own spot).
+      centered: false
+      shown_on_top: false
+    fullscreen:
+      maximized: true
+      shown_on_top: false
+
+# Workspaces are numbers. They are not bound to a monitor: deskhud's "numbers follow your screen" rule
+# decides where one opens (a number in use stays on its screen; a free number opens on the screen you
+# are on), by focusing that screen before `focus --workspace N`.
+workspaces:
+  - name: '1'
+  - name: '2'
+  - name: '3'
+  - name: '4'
+  - name: '5'
+  - name: '6'
+  - name: '7'
+  - name: '8'
+  - name: '9'
+
+window_rules:
+  - commands: ['ignore']
+    match:
+      # The bar and deskhud's own windows (island, tab strip, menus) are never tiled.
+      - window_process: { equals: 'yasb' }
+      - window_process: { equals: 'deskhud' }
+
+      # Picture-in-picture windows of browsers.
+      - window_title: { regex: '[Pp]icture.in.[Pp]icture' }
+        window_class: { regex: 'Chrome_WidgetWin_1|MozillaDialogClass' }
+
+      # Third-party pop-ups that should not tile.
+      - window_process: { equals: 'PowerToys' }
+        window_class: { regex: 'HwndWrapper\[PowerToys\.PowerAccent.*?\]' }
+      - window_title: { equals: 'Command Palette' }
+        window_class: { equals: 'WinUIDesktopWin32WindowClass' }
+      - window_process: { equals: 'PowerToys' }
+        window_title: { regex: '.*? - Peek' }
+      - window_process: { equals: 'Lively' }
+        window_class: { regex: 'HwndWrapper' }
+      - window_process: { equals: 'EXCEL' }
+        window_class: { not_regex: 'XLMAIN' }
+      - window_process: { equals: 'WINWORD' }
+        window_class: { not_regex: 'OpusApp' }
+      - window_process: { equals: 'POWERPNT' }
+        window_class: { not_regex: 'PPTFrameClass' }
+      - window_process: { equals: 'handy' }
+        window_title: { equals: 'Recording' }
+
+  - commands: ['set-floating']
+    match:
+      # Settings windows float.
+      - window_process: { equals: 'SystemSettings' }
+      - window_process: { equals: 'ApplicationFrameHost' }
+        window_title: { equals: 'Settings' }
+      - window_title: { regex: '^Vivaldi Settings' }
+      - window_process: { equals: 'handy' }
+      # The hotkey hub (Win+/) opens in Obsidian and floats over the current workspace. Remove this
+      # line if you want Obsidian itself tiled.
+      - window_process: { equals: 'Obsidian' }
+
+binding_modes: []
+
+# Empty while deskhud runs the hotkeys (see the top of this file).
+keybindings: []
