@@ -1,0 +1,30 @@
+{
+  "is_paused": false,
+  "monitors": {
+    "focused": 0,
+    "elements": [
+      {
+        "name": "DISPLAY1", "device_id": "DISPLAY1", "serial_number_id": "TST0001",
+        "size": { "left": 0, "top": 0, "right": 1920, "bottom": 1080 },
+        "workspaces": {
+          "focused": 0,
+          "elements": [
+            {
+              "name": "I", "layout": { "Default": "BSP" },
+              "containers": {
+                "focused": 1,
+                "elements": [
+                  { "windows": { "focused": 0, "elements": [ { "hwnd": 1, "exe": "a.exe", "title": "A" } ] } },
+                  { "windows": { "focused": 1, "elements": [ { "hwnd": 2, "exe": "b.exe", "title": "B" }, { "hwnd": 3, "exe": "c.exe", "title": "C" } ] } }
+                ]
+              },
+              "floating_windows": { "elements": [] },
+              "latest_layout": [ { "left": 0, "top": 0, "right": 960, "bottom": 1080 }, { "left": 960, "top": 0, "right": 960, "bottom": 1080 } ]
+            },
+            { "name": "II", "layout": { "Default": "BSP" }, "containers": { "focused": 0, "elements": [] }, "floating_windows": { "elements": [] } }
+          ]
+        }
+      }
+    ]
+  }
+}

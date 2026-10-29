@@ -1,0 +1,9 @@
+.shell cmd
+## Test hotkeys
+win + t                 : glazewm command toggle-tabbed
+win + left              : glazewm command focus --direction left
+win + ctrl + right      : glazewm command resize --width +3%
+win + oem_6             : deskhud cycle-tab next
+win + alt + left        : deskhud stack left
+win + 3                 : deskhud workspace 3
+win + shift + z         : komorebic cycle-layout next

@@ -1,0 +1,40 @@
+{
+  "monitors": [
+    {
+      "type": "monitor", "id": "m", "hasFocus": true, "x": 0, "y": 0, "width": 1920, "height": 1080, "deviceName": "\\\\.\\DISPLAY1",
+      "childFocusOrder": ["ws"],
+      "children": [
+        {
+          "type": "workspace", "id": "ws", "name": "1", "hasFocus": true, "isDisplayed": true,
+          "x": 0, "y": 0, "width": 1920, "height": 1080, "tilingDirection": "horizontal", "childFocusOrder": ["by-index"],
+          "children": [
+            {
+              "type": "split", "id": "by-index", "x": 0, "y": 0, "width": 960, "height": 1080, "tilingDirection": "horizontal",
+              "layout": "tabbed", "activeChildIndex": 2, "childFocusOrder": ["t1"],
+              "children": [
+                { "type": "window", "id": "t1", "handle": 11, "title": "one", "processName": "a", "state": { "type": "tiling" }, "x": 0, "y": 0, "width": 960, "height": 1080 },
+                {
+                  "type": "split", "id": "nested", "x": 0, "y": 0, "width": 960, "height": 1080, "tilingDirection": "vertical",
+                  "childFocusOrder": ["t2"],
+                  "children": [
+                    { "type": "window", "id": "t2", "handle": 12, "title": "two", "processName": "b", "state": { "type": "tiling" }, "x": 0, "y": 0, "width": 960, "height": 540 },
+                    { "type": "window", "id": "t3", "handle": 13, "title": "three", "processName": "c", "state": { "type": "tiling" }, "x": 0, "y": 540, "width": 960, "height": 540 }
+                  ]
+                },
+                { "type": "window", "id": "t4", "handle": 14, "title": "four", "processName": "d", "state": { "type": "tiling" }, "x": 0, "y": 0, "width": 960, "height": 1080 }
+              ]
+            },
+            {
+              "type": "split", "id": "by-focus", "x": 960, "y": 0, "width": 960, "height": 1080, "tilingDirection": "horizontal",
+              "layout": "tabbed", "childFocusOrder": ["u2", "u1"],
+              "children": [
+                { "type": "window", "id": "u1", "handle": 21, "title": "u1", "processName": "e", "state": { "type": "tiling" }, "x": 960, "y": 0, "width": 960, "height": 1080 },
+                { "type": "window", "id": "u2", "handle": 22, "title": "u2", "processName": "f", "state": { "type": "tiling" }, "x": 960, "y": 0, "width": 960, "height": 1080 }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -13,6 +13,9 @@ using System;
 using System.Threading;
 using System.Windows.Forms;
 
+// The offline tests (tests\run.ps1) reach deskhud's internal types directly.
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("deskhud.tests")]
+
 namespace DeskHud
 {
     /// deskhud              runs the daemon (one per session)

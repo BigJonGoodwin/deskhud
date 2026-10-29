@@ -21,8 +21,10 @@ namespace DeskHud
         public static readonly string SettingsFile = Path.Combine(ConfigDir, "settings.json");
         public static readonly string YasbColors = Path.Combine(Home, ".config", "yasb", "deskhud_colors.css");
 
-        public static readonly string StateDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "deskhud");
+        /// DESKHUD_STATE_DIR moves it, so the offline tests never write into a running deskhud's log or caches.
+        public static readonly string StateDir = string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DESKHUD_STATE_DIR"))
+            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "deskhud")
+            : Environment.GetEnvironmentVariable("DESKHUD_STATE_DIR");
         public static readonly string LogFile = Path.Combine(StateDir, "deskhud.log");
         public static readonly string TickerFile = Path.Combine(StateDir, "ticker.json");
         public static readonly string WeatherCache = Path.Combine(StateDir, "weather.json");

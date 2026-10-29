@@ -1,0 +1,128 @@
+{
+  "messageType": "client_response",
+  "clientMessage": "query monitors",
+  "success": true,
+  "error": null,
+  "data": {
+    "monitors": [
+      {
+        "type": "monitor", "id": "m-primary", "parentId": "root", "hasFocus": true,
+        "x": 0, "y": 0, "width": 2400, "height": 1600, "dpi": 168, "scaleFactor": 1.75,
+        "handle": 65537, "deviceName": "\\\\.\\DISPLAY1", "devicePath": "\\\\?\\DISPLAY#TST0001#test", "hardwareId": "TST0001",
+        "workingRect": { "left": 0, "top": 0, "right": 2400, "bottom": 1600 },
+        "childFocusOrder": ["ws-1", "ws-3"],
+        "children": [
+          {
+            "type": "workspace", "id": "ws-1", "name": "1", "displayName": null, "parentId": "m-primary",
+            "hasFocus": true, "isDisplayed": true, "x": 0, "y": 40, "width": 2400, "height": 1560,
+            "tilingDirection": "horizontal",
+            "childFocusOrder": ["split-tabs", "win-a", "win-f", "win-m"],
+            "children": [
+              {
+                "type": "window", "id": "win-a", "parentId": "ws-1", "hasFocus": false, "tilingSize": 0.5,
+                "x": 0, "y": 40, "width": 1200, "height": 1560,
+                "state": { "type": "tiling" }, "prevState": null, "displayState": "shown",
+                "borderDelta": { "left": { "amount": 0, "unit": "pixel" }, "top": { "amount": 0, "unit": "pixel" }, "right": { "amount": 0, "unit": "pixel" }, "bottom": { "amount": 0, "unit": "pixel" } },
+                "floatingPlacement": { "left": 0, "top": 0, "right": 800, "bottom": 600 },
+                "handle": 1001, "title": "Terminal", "className": "CASCADIA_HOSTING_WINDOW_CLASS", "processName": "WindowsTerminal", "activeDrag": null
+              },
+              {
+                "type": "split", "id": "split-tabs", "parentId": "ws-1", "hasFocus": false, "tilingSize": 0.5,
+                "x": 1200, "y": 40, "width": 1200, "height": 1560, "tilingDirection": "vertical",
+                "layout": "tabbed", "activeChildId": "win-b2",
+                "childFocusOrder": ["win-b2", "win-b1"],
+                "children": [
+                  {
+                    "type": "window", "id": "win-b1", "parentId": "split-tabs", "hasFocus": false, "tilingSize": 1.0,
+                    "x": 1200, "y": 66, "width": 1200, "height": 1534,
+                    "state": { "type": "tiling" }, "prevState": null, "displayState": "hidden",
+                    "handle": 1002, "title": "Notes", "className": "Notepad", "processName": "notepad", "activeDrag": null
+                  },
+                  {
+                    "type": "window", "id": "win-b2", "parentId": "split-tabs", "hasFocus": true, "tilingSize": 1.0,
+                    "x": 1200, "y": 66, "width": 1200, "height": 1534,
+                    "state": { "type": "tiling" }, "prevState": null, "displayState": "shown",
+                    "handle": 1003, "title": "Browser", "className": "Chrome_WidgetWin_1", "processName": "msedge", "activeDrag": null
+                  }
+                ]
+              },
+              {
+                "type": "window", "id": "win-f", "parentId": "ws-1", "hasFocus": false, "tilingSize": null,
+                "x": 600, "y": 400, "width": 800, "height": 600,
+                "state": { "type": "floating", "centered": true, "shownOnTop": false }, "prevState": "tiling", "displayState": "shown",
+                "handle": 1004, "title": "Settings", "className": "ApplicationFrameWindow", "processName": "ApplicationFrameHost", "activeDrag": null
+              },
+              {
+                "type": "window", "id": "win-m", "parentId": "ws-1", "hasFocus": false, "tilingSize": null,
+                "x": 0, "y": 0, "width": 800, "height": 600,
+                "state": { "type": "minimized" }, "prevState": { "type": "tiling" }, "displayState": "hidden",
+                "handle": 1005, "title": "Calculator", "className": "ApplicationFrameWindow", "processName": "ApplicationFrameHost", "activeDrag": null
+              }
+            ]
+          },
+          {
+            "type": "workspace", "id": "ws-3", "name": "3", "displayName": null, "parentId": "m-primary",
+            "hasFocus": false, "isDisplayed": false, "x": 0, "y": 40, "width": 2400, "height": 1560,
+            "tilingDirection": "horizontal", "childFocusOrder": ["win-c"],
+            "children": [
+              {
+                "type": "window", "id": "win-c", "parentId": "ws-3", "hasFocus": false, "tilingSize": 1.0,
+                "x": 0, "y": 40, "width": 2400, "height": 1560,
+                "state": { "type": "tiling" }, "prevState": null, "displayState": "hidden",
+                "handle": 1006, "title": "Editor", "className": "SunAwtFrame", "processName": "idea64", "activeDrag": null
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "monitor", "id": "m-left", "parentId": "root", "hasFocus": false,
+        "x": -1920, "y": 0, "width": 1920, "height": 1080, "dpi": 96, "scaleFactor": 1.0,
+        "handle": 65539, "deviceName": "\\\\.\\DISPLAY2", "devicePath": null, "hardwareId": null,
+        "workingRect": { "left": -1920, "top": 0, "right": 0, "bottom": 1080 },
+        "childFocusOrder": ["ws-2", "ws-web"],
+        "children": [
+          {
+            "type": "workspace", "id": "ws-2", "name": "2", "displayName": null, "parentId": "m-left",
+            "hasFocus": false, "isDisplayed": true, "x": -1920, "y": 40, "width": 1920, "height": 1040,
+            "tilingDirection": "horizontal", "childFocusOrder": ["split-v"],
+            "children": [
+              {
+                "type": "split", "id": "split-v", "parentId": "ws-2", "hasFocus": false, "tilingSize": 1.0,
+                "x": -1920, "y": 40, "width": 1920, "height": 1040, "tilingDirection": "vertical",
+                "childFocusOrder": ["win-e", "win-d"],
+                "children": [
+                  {
+                    "type": "window", "id": "win-d", "parentId": "split-v", "hasFocus": false, "tilingSize": 0.5,
+                    "x": -1920, "y": 40, "width": 1920, "height": 520,
+                    "state": { "type": "tiling" }, "prevState": null, "displayState": "shown",
+                    "handle": 2001, "title": "Files", "className": "CabinetWClass", "processName": "explorer", "activeDrag": null
+                  },
+                  {
+                    "type": "window", "id": "win-e", "parentId": "split-v", "hasFocus": false, "tilingSize": 0.5,
+                    "x": -1920, "y": 560, "width": 1920, "height": 520,
+                    "state": { "type": "tiling" }, "prevState": null, "displayState": "shown",
+                    "handle": 2002, "title": "Music", "className": "Chrome_WidgetWin_1", "processName": "Spotify.exe", "activeDrag": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "workspace", "id": "ws-web", "name": "web", "displayName": null, "parentId": "m-left",
+            "hasFocus": false, "isDisplayed": false, "x": -1920, "y": 40, "width": 1920, "height": 1040,
+            "tilingDirection": "vertical", "childFocusOrder": ["win-g"],
+            "children": [
+              {
+                "type": "window", "id": "win-g", "parentId": "ws-web", "hasFocus": false, "tilingSize": 1.0,
+                "x": -1920, "y": 40, "width": 1920, "height": 1040,
+                "state": { "type": "fullscreen", "maximized": true, "shownOnTop": false }, "prevState": "tiling", "displayState": "hidden",
+                "handle": 2003, "title": "Video", "className": "MozillaWindowClass", "processName": "firefox", "activeDrag": null
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

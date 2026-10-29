@@ -71,10 +71,12 @@ namespace DeskHud
             get { return Environment.ExpandEnvironmentVariables(WallpaperFolder ?? ""); }
         }
 
-        public static Settings Load()
+        public static Settings Load() { return Load(Paths.SettingsFile); }
+
+        public static Settings Load(string path)
         {
             var settings = new Settings();
-            if (!File.Exists(Paths.SettingsFile))
+            if (!File.Exists(path))
             {
                 Log.Write("settings.json not found, using defaults");
                 return settings;
@@ -82,7 +84,7 @@ namespace DeskHud
 
             try
             {
-                object root = Json.Parse(File.ReadAllText(Paths.SettingsFile));
+                object root = Json.Parse(File.ReadAllText(path));
 
                 var wm = Json.Obj(root, "window_manager");
                 settings.WindowManager = Json.Str(wm, "backend", settings.WindowManager).Trim().ToLowerInvariant();

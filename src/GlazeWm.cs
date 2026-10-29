@@ -664,24 +664,30 @@ namespace DeskHud
         /// screen first (it lags when you click an empty screen). Moving takes the window along.
         public Action PlanWorkspace(Snapshot snapshot, int number, bool move)
         {
-            string target = WorkspaceName(snapshot, number);
-            int monitor, workspace;
-            if (snapshot.FindNumber(number, out monitor, out workspace) || move)
-            {
-                if (!move) return () => GlazeIpc.Command("focus --workspace " + target);
-                return () =>
-                {
-                    if (GlazeIpc.Command("move --workspace " + target)) GlazeIpc.Command("focus --workspace " + target);
-                };
-            }
             Rectangle yours = Native.ScreenYouAreOn();
             MonitorView here = yours.IsEmpty ? null : snapshot.ForScreen(yours);
-            int screen = here != null && here.Index != snapshot.FocusedMonitor ? here.Index : -1;
+            List<string> commands = WorkspaceCommands(snapshot, number, move, here == null ? -1 : here.Index);
             return () =>
             {
-                if (screen >= 0) GlazeIpc.Command("focus --monitor " + screen);
-                GlazeIpc.Command("focus --workspace " + target);
+                // Each step needs the one before (the window must have moved before focus follows it).
+                foreach (string command in commands)
+                    if (!GlazeIpc.Command(command)) return;
             };
+        }
+
+        /// The GlazeWM commands for Win+N / Win+Shift+N, given the monitor index of the screen you are on
+        /// (-1 when unknown). A number in use goes to its own screen; moving needs no monitor at all,
+        /// since GlazeWM opens a new workspace on the moved window's screen, which is the one you are on.
+        internal static List<string> WorkspaceCommands(Snapshot snapshot, int number, bool move, int yours)
+        {
+            string target = WorkspaceName(snapshot, number);
+            int monitor, workspace;
+            var commands = new List<string>();
+            if (move) commands.Add("move --workspace " + target);
+            else if (!snapshot.FindNumber(number, out monitor, out workspace) && yours >= 0 && yours != snapshot.FocusedMonitor)
+                commands.Add("focus --monitor " + yours);
+            commands.Add("focus --workspace " + target);
+            return commands;
         }
 
         /// The workspace carrying the number (its name, which may not be the number itself), or the number as a new name.

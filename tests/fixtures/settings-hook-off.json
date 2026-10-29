@@ -1,0 +1,5 @@
+{
+  "window_manager": { "backend": "komorebi" },
+  "keyboard": { "hook": false, "win_tap": "start" },
+  "tabs": { "height": 30 }
+}
